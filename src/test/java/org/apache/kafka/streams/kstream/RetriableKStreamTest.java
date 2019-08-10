@@ -1,10 +1,10 @@
-package org.apache.kafka.streams;
+package org.apache.kafka.streams.kstream;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class RetryableKStreamTest {
+public class RetriableKStreamTest {
 
     @Disabled
     @Test
