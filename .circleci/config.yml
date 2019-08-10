@@ -7,7 +7,7 @@ version: 2.1
 defaults: &defaults
     docker:
       - image: circleci/openjdk:8-jdk
-    working_directory: ~/repo
+    working_directory: ~/ci
     environment:
       JVM_OPTS: -Xmx1024m
       TERM: dumb
@@ -16,41 +16,32 @@ orbs:
   owasp: entur/owasp@0.0.4
 
 jobs:
-  dependencies:
+  test:
     <<: *defaults
     steps:
       - checkout
-      # Download and cache dependencies
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "build.gradle" }}
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
-      - run: ./gradlew dependencies
+      - run:
+          name: Install dependencies
+          command: ./gradlew dependencies
       - save_cache:
           paths:
             - ~/.gradle
           key: v1-dependencies-{{ checksum "build.gradle" }}
-  test:
-    <<: *defaults
-    steps:
-      - run: ./gradlew test
-      # Get code coverage
-      - run: ./gradlew jacocoTestReport
-      - store_artifacts:
-          path:  build/reports/jacoco
-
+      - run:
+          name: Run Tests
+          command: ./gradlew testCi
+      - store_test_results:
+          path: build/reports
 
 workflows:
   version: 2
   test:
     jobs:
-      - dependencies
-      - test:
-          requires:
-            - dependencies
       - owasp/gradle_owasp_dependency_check:
-          requires:
-            - dependencies
-          executor: java_8
-          context: global
+          report_path: build/reports/CVEs
+      - test

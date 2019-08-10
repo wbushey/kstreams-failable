@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'idea' // to generate IntelliJ IDEA project files
     id 'jacoco' // Code Coverage
-    id "org.owasp.dependencycheck" version "5.2.0" // CVE Checking
+    id "org.owasp.dependencycheck" version "5.2.1" // CVE Checking
 }
 
 
@@ -17,21 +17,60 @@ dependencies {
     testImplementation('org.junit.jupiter:junit-jupiter:5.5.1')
 }
 
+/************************
+ * Testing configuration
+ ************************/
+
+// Configuration for standard test task
 test {
     useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
     }
+
+    reports{
+        html.destination file("${buildDir}/reports/tests/html")
+        junitXml.destination file("${buildDir}/reports/tests/xml")
+    }
+}
+
+// Test task run by CI
+task testCi {
+    dependsOn test, jacocoTestReport, jacocoTestCoverageVerification
+}
+
+/***********************
+ * JaCoCo Configuration
+ ***********************/
+
+jacoco{
+    reportsDir = file("${buildDir}/reports/jacoco")
 }
 
 jacocoTestReport {
     reports {
         xml.enabled true
+        xml.destination file("${jacoco.reportsDir}/results.xml")
         html.enabled true
+        html.destination file("${jacoco.reportsDir}/html")
     }
 }
 
+jacocoTestCoverageVerification {
+    mustRunAfter jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.9
+            }
+        }
+    }
+}
+
+/**************************
+ * CVE Check Configuration
+ **************************/
 dependencyCheck {
-    format='ALL'
-    outputDirectory=file("$buildDir/reports/CVEs")
+    formats = ['XML', 'HTML']
+    outputDirectory = file("$buildDir/reports/CVEs")
 }
