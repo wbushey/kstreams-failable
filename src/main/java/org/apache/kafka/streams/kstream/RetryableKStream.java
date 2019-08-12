@@ -2,8 +2,8 @@ package org.apache.kafka.streams.kstream;
 
 import org.apache.kafka.common.annotation.InterfaceStability;
 import org.apache.kafka.streams.kstream.internals.KStreamImpl;
-import org.apache.kafka.streams.kstream.internals.RetriableForeachAction;
-import org.apache.kafka.streams.kstream.internals.RetriableKStreamImpl;
+import org.apache.kafka.streams.kstream.internals.RetryableForeachAction;
+import org.apache.kafka.streams.kstream.internals.RetryableKStreamImpl;
 
 /**
  * Extension of KStreams that adds retryable processing actions.
@@ -20,43 +20,43 @@ import org.apache.kafka.streams.kstream.internals.RetriableKStreamImpl;
  * @see KStream
  */
 @InterfaceStability.Evolving
-public interface RetriableKStream<K, V> extends KStream<K, V> {
+public interface RetryableKStream<K, V> extends KStream<K, V> {
 
     /**
-     * Decorates a provided {@KStream} with retriable methods.
+     * Decorates a provided {@KStream} with retryable methods.
      *
      * @param original
-     * @return Decorated stream with retriable methods.
+     * @return Decorated stream with retryable methods.
      */
-    static RetriableKStream fromKStream(KStream original){
+    static <K, V> RetryableKStream<K, V> fromKStream(KStream<K, V> original){
         // Assuming KStream is a KStreamImpl :(
         // TODO stop doing that
-        return new RetriableKStreamImpl((KStreamImpl)original);
+        return new RetryableKStreamImpl<>((KStreamImpl<K, V>) original);
     }
 
     /**
-     * Perform an action on each record of {@code RetriableKStream}. If execution of that action throws a
-     * RetriableException, than the action will be retried at a later time, and will not block processing of other
+     * Perform an action on each record of {@code RetryableKStream}. If execution of that action throws a
+     * RetryableException, than the action will be retried at a later time, and will not block processing of other
      * messages. If execution of that action throws a FailableException, or if the maximum number of retries is reached,
      * then the message and associated data about it will be written to a dead-letter topic.
      *
      * The record-by-record operation performed by the provided action is stateless. However, a state store is created
      * to store information about actions to retry in the future. The state store's name will be derived from a name
-     * generated for the processing node. <strong>Passing a specified {@code Named} via
-     * {@code #retriableForeach(RetriableForeachAction, Named)} is highly recommended to ensure a consistent state
+     * generated for the processing node. <strong>Passing a specified name via
+     * {@code #retryableForeach(RetryableForeachAction, String)} is highly recommended to ensure a consistent state
      * store name for the processing node across topology changes.</strong>
      *
      * Note that this is a terminal operation that returns void.
      *
      * @param action an action to perform on each record
-     * @see #retriableForeach(RetriableForeachAction, Named)
+     * @see #retryableForeach(RetryableForeachAction, String)
      * @see KStream#foreach(ForeachAction)
      */
-    void retriableForeach(final RetriableForeachAction<? super K, ? super V> action);
+    void retryableForeach(final RetryableForeachAction<? super K, ? super V> action);
 
     /**
-     * Perform an action on each record of {@code RetriableKStream}. If execution of that action throws a
-     * RetriableException, than the action will be retried at a later time, and will not block processing of other
+     * Perform an action on each record of {@code RetryableKStream}. If execution of that action throws a
+     * RetryableException, than the action will be retried at a later time, and will not block processing of other
      * messages. If execution of that action throws a FailableException, or if the maximum number of retries is reached,
      * then the message and associated data about it will be written to a dead-letter topic.
      *
@@ -67,19 +67,19 @@ public interface RetriableKStream<K, V> extends KStream<K, V> {
      * Note that this is a terminal operation that returns void.
      *
      * @param action an action to perform on each record
-     * @param named  a {@link Named} config used to name the processor in the topology
+     * @param name   used to name the processor in the topology
      * @see KStream#foreach(ForeachAction)
      */
-    void retriableForeach(final RetriableForeachAction<? super K, ? super V> action, final Named named);
+    void retryableForeach(final RetryableForeachAction<? super K, ? super V> action, final String name);
 
 
     /**
      * An exception representing an error that is likely to automatically heal. Thus, the action that led to this
      * exception should be retired.
      */
-    class RetriableException extends Exception {
-        public RetriableException(String message) { super(message); }
-        public RetriableException(String message, Throwable e) { super(message, e);}
+    class RetryableException extends Exception {
+        public RetryableException(String message) { super(message); }
+        public RetryableException(String message, Throwable e) { super(message, e);}
     }
 
     /**
