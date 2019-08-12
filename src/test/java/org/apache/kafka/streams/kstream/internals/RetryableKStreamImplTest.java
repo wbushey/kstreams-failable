@@ -6,6 +6,7 @@ import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.RetryableKStream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RetryableKStreamImplTest {
     private final Properties props = new Properties();
+    private TopologyTestDriver driver;
 
     /*
      * Mock ForeachActions and related helpers
@@ -41,6 +43,13 @@ public class RetryableKStreamImplTest {
         props.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "test");
     }
 
+    @AfterEach
+    void tearDown(){
+        if (driver != null){
+            driver.close();
+        }
+    }
+
     @Test
     @DisplayName("Should add the retryable node to the topology")
     void addsRetryableNodeToTopology(){
@@ -57,7 +66,7 @@ public class RetryableKStreamImplTest {
         while (!found && subtopologyIterator.hasNext()){
             Iterator<TopologyDescription.Node> nodeIterator = subtopologyIterator.next().nodes().iterator();
             while (!found && nodeIterator.hasNext()){
-                found = nodeIterator.next().name().contains("RETRYABLEKSTREAM-RETRYABLE_FOREACH");
+                found = nodeIterator.next().name().startsWith("RETRYABLEKSTREAM-RETRYABLE_FOREACH-");
             }
         }
         topology.describe().subtopologies().iterator().next().nodes().iterator().next();
@@ -73,8 +82,13 @@ public class RetryableKStreamImplTest {
         RetryableKStream<String, String> retriableStream = RetryableKStream.fromKStream(kStream);
         retriableStream.retryableForeach(mockForeach);
 
-        TopologyTestDriver driver = new TopologyTestDriver(builder.build(), props);
-        assertEquals(1, driver.getAllStateStores().size());
-        assertTrue(false);
+        this.driver = new TopologyTestDriver(builder.build(), props);
+        assertEquals(1, this.driver.getAllStateStores().size());
+        boolean found = false;
+        Iterator<String> keyIterator = this.driver.getAllStateStores().keySet().iterator();
+        while (!found && keyIterator.hasNext()){
+            found = keyIterator.next().endsWith("-RETRIES_STORE");
+        }
+        assertTrue(found, "Did not find Retries Store in the topology's state stores");
     }
 }

@@ -18,8 +18,9 @@ import java.util.Objects;
 import java.util.Set;
 
 public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements RetryableKStream<K, V> {
-    // TODO Composition of provided stream instead of extention would avoid need for reflection and requirement for a
-    //  KStreamImpl instead of a KStream
+    // TODO Composition of provided stream instead of extension would avoid need for reflection and requirement for a
+    //  KStreamImpl instead of a KStream. Well, not completely, since this Impl needs a builder... or could it add
+    // to the processing topology via `process`?
 
     private static final String RETRIES_STORE_SUFFIX = "-RETRIES_STORE";
 
@@ -70,21 +71,24 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
         final String retries_store_name = name.concat(RETRIES_STORE_SUFFIX);
 
 
-        // TODO Fix types of this key value store
-        StoreBuilder<KeyValueStore<String, String>> retries_store = Stores.keyValueStoreBuilder(
-                Stores.persistentKeyValueStore(retries_store_name),
-                Serdes.String(), Serdes.String());
-        builder.internalTopologyBuilder.addStateStore(retries_store, name);
+        StoreBuilder<KeyValueStore<String, String>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
 
-
-        StatefulProcessorNode
         final ProcessorParameters<? super K, ? super V> processorParameters = new ProcessorParameters<>(
                 new RetryableKStreamRetryableForeach<>(retries_store_name, action),
                 name
         );
 
-        final ProcessorGraphNode<? super K, ? super V> retriableForeachNode = new ProcessorGraphNode<>(name, processorParameters);
+        final StatefulProcessorNode<? super K, ? super V> retriableForeachNode = new StatefulProcessorNode<>(name, processorParameters, retries_store_builder);
         builder.addGraphNode(this.streamsGraphNode, retriableForeachNode);
+    }
 
+    /*
+     * Common setup for retries state stores
+     */
+    private StoreBuilder<KeyValueStore<String, String>> getRetriesStoreBuilder(String retries_store_name){
+        // TODO Fix types of this key value store
+        return Stores.keyValueStoreBuilder(
+                Stores.persistentKeyValueStore(retries_store_name),
+                Serdes.String(), Serdes.String());
     }
 }
