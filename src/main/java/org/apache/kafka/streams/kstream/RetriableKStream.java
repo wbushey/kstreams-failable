@@ -28,8 +28,10 @@ public interface RetriableKStream<K, V> extends KStream<K, V> {
      * @param original
      * @return Decorated stream with retriable methods.
      */
-    static RetriableKStream fromKStream(KStreamImpl original){
-        return new RetriableKStreamImpl(original);
+    static RetriableKStream fromKStream(KStream original){
+        // Assuming KStream is a KStreamImpl :(
+        // TODO stop doing that
+        return new RetriableKStreamImpl((KStreamImpl)original);
     }
 
     /**

@@ -8,6 +8,7 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
+import org.apache.kafka.test.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -16,13 +17,13 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 
 class RetryableKStreamRetriableForeachTest {
+
     /*
      * Mock ForeachActions and related helpers
      */
@@ -39,6 +40,7 @@ class RetryableKStreamRetriableForeachTest {
      * StateStore and ProcessorContext used for these tests
      */
     private final String RETRIES_STORE_NAME = "retiresStore";
+    private final String TEST_INPUT_TOPIC_NAME = "testTopic";
     private final StoreBuilder<KeyValueStore<String, String>> retriesStoreBuilder = Stores.keyValueStoreBuilder(
             Stores.inMemoryKeyValueStore(RETRIES_STORE_NAME),
             Serdes.String(), Serdes.String()
@@ -153,24 +155,3 @@ class RetryableKStreamRetriableForeachTest {
 
 }
 
-class Pair<Key, Value> {
-  public final Key key;
-  public final Value value;
-  public Pair(Key key, Value value) {
-      this.key = key;
-      this.value = value;
-  }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Pair<?, ?> pair = (Pair<?, ?>) o;
-        return this.hashCode() == pair.hashCode();
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(key, value);
-    }
-}
