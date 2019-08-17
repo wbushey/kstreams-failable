@@ -1,15 +1,13 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.retryableTest.extentions.TopologyTestDriverExtention;
 import org.apache.kafka.retryableTest.mockCallbacks.MockForeach;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.RetryableKStream;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Iterator;
@@ -20,9 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(org.apache.kafka.retryableTest.extentions.MockForeach.class)
 class RetryableKStreamImplTest {
-    private final Properties props = new Properties();
-    private TopologyTestDriver driver;
-
     /*
      * Mock ForeachActions and related helpers
      */
@@ -33,22 +28,6 @@ class RetryableKStreamImplTest {
 
     RetryableKStreamImplTest(MockForeach<String, String> mockForeach){
         this.mockForeach = mockForeach;
-    }
-
-    @BeforeEach
-    void setup(){
-        props.clear();
-        props.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9091");
-        props.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        props.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "test");
-    }
-
-    @AfterEach
-    void tearDown(){
-        if (driver != null){
-            driver.close();
-        }
     }
 
     @Test
@@ -74,22 +53,31 @@ class RetryableKStreamImplTest {
         assertTrue(found, "Did not find RetryableForeach node in topology");
     }
 
+    @Nested
+    @ExtendWith(TopologyTestDriverExtention.class)
+    class WithRetryableForEachTopology{
+        private final TopologyTestDriver driver;
 
-    @Test
-    @DisplayName("Should use a unique state store for each retryable node")
-    void uniqueStateStorePerRetryableNode(){
-        final StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, String> kStream = builder.stream(TEST_INPUT_TOPIC_NAME, stringConsumed);
-        RetryableKStream<String, String> retriableStream = RetryableKStream.fromKStream(kStream);
-        retriableStream.retryableForeach(mockForeach.getCallback());
+        WithRetryableForEachTopology(Properties topologyProps){
+            final StreamsBuilder builder = new StreamsBuilder();
+            final KStream<String, String> kStream = builder.stream(TEST_INPUT_TOPIC_NAME, stringConsumed);
+            final RetryableKStream<String, String> retriableStream = RetryableKStream.fromKStream(kStream);
+            retriableStream.retryableForeach(mockForeach.getCallback());
 
-        this.driver = new TopologyTestDriver(builder.build(), props);
-        assertEquals(1, this.driver.getAllStateStores().size());
-        boolean found = false;
-        Iterator<String> keyIterator = this.driver.getAllStateStores().keySet().iterator();
-        while (!found && keyIterator.hasNext()){
-            found = keyIterator.next().endsWith("-RETRIES_STORE");
+            this.driver = new TopologyTestDriver(builder.build(), topologyProps);
         }
-        assertTrue(found, "Did not find Retries Store in the topology's state stores");
+
+        @Test
+        @DisplayName("Should use a unique state store for each retryable node")
+        void uniqueStateStorePerRetryableNode(){
+            assertEquals(1, this.driver.getAllStateStores().size());
+
+            boolean found = false;
+            Iterator<String> keyIterator = this.driver.getAllStateStores().keySet().iterator();
+            while (!found && keyIterator.hasNext()){
+                found = keyIterator.next().endsWith("-RETRIES_STORE");
+            }
+            assertTrue(found, "Did not find Retries Store in the topology's state stores");
+        }
     }
 }
