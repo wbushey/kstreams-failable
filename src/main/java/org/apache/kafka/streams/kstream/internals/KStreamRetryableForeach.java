@@ -7,12 +7,12 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.ProcessorSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
 
-public class RetryableKStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
+public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
 
     private final RetryableForeachAction<? super K, ? super V> action;
     private final String retriesStoreName;
 
-    RetryableKStreamRetryableForeach(String retriesStoreName, final RetryableForeachAction<? super K, ? super V> action){
+    KStreamRetryableForeach(String retriesStoreName, final RetryableForeachAction<? super K, ? super V> action){
         this.retriesStoreName = retriesStoreName;
         this.action = action;
     }

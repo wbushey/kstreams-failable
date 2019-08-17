@@ -1,8 +1,9 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.retryableTest.mockCallbacks.MockForeach;
+import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeach;
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -13,8 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -22,25 +24,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 
-class RetryableKStreamRetryableForeachTest {
-
+@ExtendWith(org.apache.kafka.retryableTest.extentions.MockForeach.class)
+@ExtendWith(org.apache.kafka.retryableTest.extentions.MockRetryableExceptionForeach.class)
+class KStreamRetryableForeachTest {
     /*
      * Mock ForeachActions and related helpers
      */
-    private final List<Pair> receivedRecords = new LinkedList<>();
-    private final RetryableForeachAction<String, String> mockForeach = (key, value) -> {
-        receivedRecords.add(new Pair<>(key, value));
-    };
-    private final RetryableForeachAction<String, String> retryableExceptionMockForeach = (key, value) -> {
-        mockForeach.apply(key, value);
-        throw new RetryableKStream.RetryableException("Testing Happened");
-    };
+    private final MockForeach<String, String> mockForeach;
+    private final MockRetryableExceptionForeach<String, String> mockRetryableExceptionForeach;
 
     /*
      * StateStore and ProcessorContext used for these tests
      */
     private final String RETRIES_STORE_NAME = "retiresStore";
-    private final String TEST_INPUT_TOPIC_NAME = "testTopic";
     private final StoreBuilder<KeyValueStore<String, String>> retriesStoreBuilder = Stores.keyValueStoreBuilder(
             Stores.inMemoryKeyValueStore(RETRIES_STORE_NAME),
             Serdes.String(), Serdes.String()
@@ -48,15 +44,16 @@ class RetryableKStreamRetryableForeachTest {
     private final KeyValueStore<String, String> retriesStore = retriesStoreBuilder.build();
     private final ProcessorContext mockContext = mock(ProcessorContext.class);
 
+    // Test constructor
+    KStreamRetryableForeachTest(MockForeach<String, String> mockForeach, MockRetryableExceptionForeach<String, String> mockRetryableExceptionForeach){
+        this.mockForeach = mockForeach;
+        this.mockRetryableExceptionForeach = mockRetryableExceptionForeach;
+    }
+
     @BeforeEach
     void setup(){
-        // Reset records received by mock ForeachActions for consistent expectations
-        receivedRecords.clear();
-
         // Clear the testing retries store
-        retriesStore.all().forEachRemaining((keyValue) -> {
-            retriesStore.delete(keyValue.key);
-        });
+        retriesStore.all().forEachRemaining((keyValue) -> retriesStore.delete(keyValue.key));
 
         // Clear anything that happened to the mockContext
         reset(mockContext);
@@ -66,15 +63,15 @@ class RetryableKStreamRetryableForeachTest {
     @Test
     @DisplayName("It immediately attempts to execute the provided block")
     void testImmediateExecution(){
-        final Processor<String, String> subject = new RetryableKStreamRetryableForeach<>(RETRIES_STORE_NAME,mockForeach).get();
+        final Processor<String, String> subject = new KStreamRetryableForeach<>(RETRIES_STORE_NAME, mockForeach.getCallback()).get();
         subject.process("key", "value");
-        assertEquals(Arrays.asList(new Pair<>("key", "value")), receivedRecords);
+        assertEquals(Collections.singletonList(new Pair<>("key", "value")), mockForeach.getReceivedRecords());
     }
 
     @Test
     @DisplayName("It schedules a retry via the retries state store if a RetryableException is thrown by the block")
     void testSchedulingRetry(){
-        final Processor<String, String> subject = new RetryableKStreamRetryableForeach<>(RETRIES_STORE_NAME, retryableExceptionMockForeach).get();
+        final Processor<String, String> subject = new KStreamRetryableForeach<>(RETRIES_STORE_NAME, mockRetryableExceptionForeach.getCallback()).get();
         subject.init(mockContext);
         subject.process("key", "value");
         List<KeyValue<String, String>> scheduledJobs = new LinkedList<>();

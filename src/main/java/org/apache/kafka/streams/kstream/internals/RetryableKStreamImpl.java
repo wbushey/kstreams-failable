@@ -3,15 +3,12 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.kstream.RetryableKStream;
-import org.apache.kafka.streams.kstream.internals.graph.ProcessorGraphNode;
 import org.apache.kafka.streams.kstream.internals.graph.ProcessorParameters;
 import org.apache.kafka.streams.kstream.internals.graph.StatefulProcessorNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamsGraphNode;
-import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
-import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
 
 import java.lang.reflect.Field;
 import java.util.Objects;
@@ -74,7 +71,7 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
         StoreBuilder<KeyValueStore<String, String>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
 
         final ProcessorParameters<? super K, ? super V> processorParameters = new ProcessorParameters<>(
-                new RetryableKStreamRetryableForeach<>(retries_store_name, action),
+                new KStreamRetryableForeach<>(retries_store_name, action),
                 name
         );
 

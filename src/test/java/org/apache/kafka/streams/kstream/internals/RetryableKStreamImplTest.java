@@ -1,7 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.Pair;
+import org.apache.kafka.retryableTest.mockCallbacks.MockForeach;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
@@ -10,29 +10,30 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class RetryableKStreamImplTest {
+@ExtendWith(org.apache.kafka.retryableTest.extentions.MockForeach.class)
+class RetryableKStreamImplTest {
     private final Properties props = new Properties();
     private TopologyTestDriver driver;
 
     /*
      * Mock ForeachActions and related helpers
      */
-    private final List<Pair> receivedRecords = new LinkedList<>();
-    private final RetryableForeachAction<String, String> mockForeach = (key, value) -> {
-        receivedRecords.add(new Pair<>(key, value));
-    };
+    private final MockForeach<String, String> mockForeach;
 
     private final String TEST_INPUT_TOPIC_NAME = "testTopic";
     private final Consumed<String, String> stringConsumed = Consumed.with(Serdes.String(), Serdes.String());
+
+    RetryableKStreamImplTest(MockForeach<String, String> mockForeach){
+        this.mockForeach = mockForeach;
+    }
 
     @BeforeEach
     void setup(){
@@ -56,7 +57,7 @@ public class RetryableKStreamImplTest {
         final StreamsBuilder builder = new StreamsBuilder();
         KStream<String, String> kStream = builder.stream(TEST_INPUT_TOPIC_NAME, stringConsumed);
         RetryableKStream<String, String> retryableStream = RetryableKStream.fromKStream(kStream);
-        retryableStream.retryableForeach(mockForeach);
+        retryableStream.retryableForeach(mockForeach.getCallback());
 
         Topology topology = builder.build();
 
@@ -80,7 +81,7 @@ public class RetryableKStreamImplTest {
         final StreamsBuilder builder = new StreamsBuilder();
         KStream<String, String> kStream = builder.stream(TEST_INPUT_TOPIC_NAME, stringConsumed);
         RetryableKStream<String, String> retriableStream = RetryableKStream.fromKStream(kStream);
-        retriableStream.retryableForeach(mockForeach);
+        retriableStream.retryableForeach(mockForeach.getCallback());
 
         this.driver = new TopologyTestDriver(builder.build(), props);
         assertEquals(1, this.driver.getAllStateStores().size());
