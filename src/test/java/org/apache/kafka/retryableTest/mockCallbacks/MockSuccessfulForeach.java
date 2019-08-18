@@ -6,7 +6,7 @@ import org.apache.kafka.streams.kstream.internals.RetryableForeachAction;
 import java.util.LinkedList;
 import java.util.List;
 
-public class MockForeach<K, V> implements MockCallback<K, V> {
+public class MockSuccessfulForeach<K, V> implements MockCallback<K, V> {
     private final List<Pair> receivedRecords = new LinkedList<>();
     private final RetryableForeachAction<K, V> mockForeach = (key, value) -> receivedRecords.add(new Pair<>(key, value));
 

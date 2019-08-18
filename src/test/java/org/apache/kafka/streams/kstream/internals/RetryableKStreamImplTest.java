@@ -1,9 +1,10 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverExtension;
 import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverProvider;
-import org.apache.kafka.retryableTest.mockCallbacks.MockForeach;
+import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
@@ -17,12 +18,12 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockForeach.class)
+@ExtendWith(MockSuccessfulForeachExtension.class)
 class RetryableKStreamImplTest {
     /*
      * Mock ForeachActions and related helpers
      */
-    private final MockForeach<String, String> mockForeach;
+    private final MockSuccessfulForeach<String, String> mockForeach;
 
     /*
      * TopologyTestDriver supporting
@@ -30,7 +31,7 @@ class RetryableKStreamImplTest {
     private final String TEST_INPUT_TOPIC_NAME = "testTopic";
     private final Consumed<String, String> stringConsumed = Consumed.with(Serdes.String(), Serdes.String());
 
-    RetryableKStreamImplTest(MockForeach<String, String> mockForeach){
+    RetryableKStreamImplTest(MockSuccessfulForeach<String, String> mockForeach){
         this.mockForeach = mockForeach;
     }
 
