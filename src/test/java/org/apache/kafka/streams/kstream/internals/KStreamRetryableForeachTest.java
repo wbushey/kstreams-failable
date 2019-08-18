@@ -1,83 +1,97 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverExtension;
+import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverProvider;
 import org.apache.kafka.retryableTest.mockCallbacks.MockForeach;
 import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeach;
 import org.apache.kafka.streams.KeyValue;
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.TopologyTestDriver;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.processor.Processor;
-import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.retryableTest.Pair;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.apache.kafka.streams.test.ConsumerRecordFactory;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
 
 
 @ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockForeach.class)
-@ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeach.class)
-class KStreamRetryableForeachTest {
+class KStreamRetryableForeachTest implements TopologyTestDriverProvider  {
     /*
      * Mock ForeachActions and related helpers
      */
     private final MockForeach<String, String> mockForeach;
-    private final MockRetryableExceptionForeach<String, String> mockRetryableExceptionForeach;
+
 
     /*
-     * StateStore and ProcessorContext used for these tests
+     * TopologyTestDriver supporting
      */
-    private final String RETRIES_STORE_NAME = "retiresStore";
-    private final StoreBuilder<KeyValueStore<String, String>> retriesStoreBuilder = Stores.keyValueStoreBuilder(
-            Stores.inMemoryKeyValueStore(RETRIES_STORE_NAME),
-            Serdes.String(), Serdes.String()
-    );
-    private final KeyValueStore<String, String> retriesStore = retriesStoreBuilder.build();
-    private final ProcessorContext mockContext = mock(ProcessorContext.class);
+    private final String TEST_INPUT_TOPIC_NAME = "testTopic";
+    private final Consumed<String, String> stringConsumed = Consumed.with(Serdes.String(), Serdes.String());
 
     // Test constructor
-    KStreamRetryableForeachTest(MockForeach<String, String> mockForeach, MockRetryableExceptionForeach<String, String> mockRetryableExceptionForeach){
+    KStreamRetryableForeachTest(MockForeach<String, String> mockForeach){
         this.mockForeach = mockForeach;
-        this.mockRetryableExceptionForeach = mockRetryableExceptionForeach;
     }
 
-    @BeforeEach
-    void setup(){
-        // Clear the testing retries store
-        retriesStore.all().forEachRemaining((keyValue) -> retriesStore.delete(keyValue.key));
-
-        // Clear anything that happened to the mockContext
-        reset(mockContext);
-        when(mockContext.getStateStore(RETRIES_STORE_NAME)).thenReturn(retriesStore);
-    }
-    
     @Test
     @DisplayName("It immediately attempts to execute the provided block")
     void testImmediateExecution(){
-        final Processor<String, String> subject = new KStreamRetryableForeach<>(RETRIES_STORE_NAME, mockForeach.getCallback()).get();
+        final Processor<String, String> subject = new KStreamRetryableForeach<>("Test-Store", mockForeach.getCallback()).get();
         subject.process("key", "value");
         assertEquals(Collections.singletonList(new Pair<>("key", "value")), mockForeach.getReceivedRecords());
     }
 
-    @Test
-    @DisplayName("It schedules a retry via the retries state store if a RetryableException is thrown by the block")
-    void testSchedulingRetry(){
-        final Processor<String, String> subject = new KStreamRetryableForeach<>(RETRIES_STORE_NAME, mockRetryableExceptionForeach.getCallback()).get();
-        subject.init(mockContext);
-        subject.process("key", "value");
-        List<KeyValue<String, String>> scheduledJobs = new LinkedList<>();
-        retriesStore.all().forEachRemaining(scheduledJobs::add);
-        assertEquals(1, scheduledJobs.size());
-        assertEquals("value", scheduledJobs.get(0).value);
+    @Nested
+    @ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeach.class)
+    @ExtendWith(TopologyTestDriverExtension.class)
+    class WithRetryableExceptionsInTopologyTestDriver implements TopologyTestDriverProvider {
+        private final TopologyTestDriver driver;
+        private final ConsumerRecordFactory<String, String> consumerRecordFactory;
+
+        WithRetryableExceptionsInTopologyTestDriver(MockRetryableExceptionForeach<String, String> mockRetryableExceptionForeach,
+                                                    Properties topologyProps){
+            final StreamsBuilder builder = new StreamsBuilder();
+            final KStream<String, String> kStream = builder.stream(TEST_INPUT_TOPIC_NAME, stringConsumed);
+            final RetryableKStream<String, String> retriableStream = RetryableKStream.fromKStream(kStream);
+            final Serializer<String> stringSerializer = new StringSerializer();
+            retriableStream.retryableForeach(mockRetryableExceptionForeach.getCallback(), "Test");
+
+            this.driver = new TopologyTestDriver(builder.build(), topologyProps);
+            this.consumerRecordFactory = new ConsumerRecordFactory<>(TEST_INPUT_TOPIC_NAME, stringSerializer, stringSerializer);
+        }
+
+        @Test
+        @DisplayName("It schedules a retry via the retries state store if a RetryableException is thrown by the block")
+        void testSchedulingRetry(){
+            driver.pipeInput(consumerRecordFactory.create(TEST_INPUT_TOPIC_NAME, "key", "value"));
+            List<KeyValue<String, String>> scheduledJobs = new LinkedList<>();
+            final KeyValueStore<String, String> retriesStore = driver.getKeyValueStore("Test-RETRIES_STORE");
+            retriesStore.all().forEachRemaining(scheduledJobs::add);
+            assertEquals(1, scheduledJobs.size());
+            assertEquals("value", scheduledJobs.get(0).value);
+        }
+
+
+        @Override
+        public TopologyTestDriver getTopologyTestDriver() {
+            return this.driver;
+        }
     }
 
     @Disabled
@@ -150,5 +164,9 @@ class KStreamRetryableForeachTest {
     @DisplayName("It closes the scheduled retries state store when closed")
     void testCloseStateStoreOnClose(){}
 
+    @Override
+    public TopologyTestDriver getTopologyTestDriver() {
+        return null;
+    }
 }
 

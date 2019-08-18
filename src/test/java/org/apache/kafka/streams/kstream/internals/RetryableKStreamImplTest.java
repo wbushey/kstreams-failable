@@ -24,6 +24,9 @@ class RetryableKStreamImplTest {
      */
     private final MockForeach<String, String> mockForeach;
 
+    /*
+     * TopologyTestDriver supporting
+     */
     private final String TEST_INPUT_TOPIC_NAME = "testTopic";
     private final Consumed<String, String> stringConsumed = Consumed.with(Serdes.String(), Serdes.String());
 
