@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTest.extentions;
+package org.apache.kafka.retryableTest.extentions.mockCallbacks;
 
 import org.junit.jupiter.api.extension.*;
 

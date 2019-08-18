@@ -21,7 +21,7 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
 
     private static final String RETRIES_STORE_SUFFIX = "-RETRIES_STORE";
 
-    private static final String RETRYABLE_FOREACH_NAME = "RETRYABLEKSTREAM-RETRYABLE_FOREACH-";
+    private static final String RETRYABLE_FOREACH_NAME = "KSTREAM-RETRYABLE_FOREACH-";
     /*
      * Reflection is necessary since repartitionRequired is private with no getter, and KStreamImpl does not provide
      * a copy constructor.

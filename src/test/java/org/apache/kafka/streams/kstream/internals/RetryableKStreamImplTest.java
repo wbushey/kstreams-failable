@@ -1,7 +1,8 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.extentions.TopologyTestDriverExtention;
+import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverExtension;
+import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverProvider;
 import org.apache.kafka.retryableTest.mockCallbacks.MockForeach;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.Consumed;
@@ -16,7 +17,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@ExtendWith(org.apache.kafka.retryableTest.extentions.MockForeach.class)
+@ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockForeach.class)
 class RetryableKStreamImplTest {
     /*
      * Mock ForeachActions and related helpers
@@ -46,16 +47,15 @@ class RetryableKStreamImplTest {
         while (!found && subtopologyIterator.hasNext()){
             Iterator<TopologyDescription.Node> nodeIterator = subtopologyIterator.next().nodes().iterator();
             while (!found && nodeIterator.hasNext()){
-                found = nodeIterator.next().name().startsWith("RETRYABLEKSTREAM-RETRYABLE_FOREACH-");
+                found = nodeIterator.next().name().startsWith("KSTREAM-RETRYABLE_FOREACH-");
             }
         }
-        topology.describe().subtopologies().iterator().next().nodes().iterator().next();
         assertTrue(found, "Did not find RetryableForeach node in topology");
     }
 
     @Nested
-    @ExtendWith(TopologyTestDriverExtention.class)
-    class WithRetryableForEachTopology{
+    @ExtendWith(TopologyTestDriverExtension.class)
+    class WithRetryableForEachTopology implements TopologyTestDriverProvider {
         private final TopologyTestDriver driver;
 
         WithRetryableForEachTopology(Properties topologyProps){
@@ -70,14 +70,17 @@ class RetryableKStreamImplTest {
         @Test
         @DisplayName("Should use a unique state store for each retryable node")
         void uniqueStateStorePerRetryableNode(){
-            assertEquals(1, this.driver.getAllStateStores().size());
+            assertEquals(1, getTopologyTestDriver().getAllStateStores().size());
 
             boolean found = false;
-            Iterator<String> keyIterator = this.driver.getAllStateStores().keySet().iterator();
+            Iterator<String> keyIterator = getTopologyTestDriver().getAllStateStores().keySet().iterator();
             while (!found && keyIterator.hasNext()){
                 found = keyIterator.next().endsWith("-RETRIES_STORE");
             }
             assertTrue(found, "Did not find Retries Store in the topology's state stores");
         }
+
+        @Override
+        public TopologyTestDriver getTopologyTestDriver() { return driver; }
     }
 }

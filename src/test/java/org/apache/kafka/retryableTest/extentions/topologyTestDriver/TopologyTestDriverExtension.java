@@ -1,16 +1,13 @@
-package org.apache.kafka.retryableTest.extentions;
+package org.apache.kafka.retryableTest.extentions.topologyTestDriver;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.TopologyTestDriver;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.*;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
-public class TopologyTestDriverExtention implements AfterEachCallback, ParameterResolver{
+public class TopologyTestDriverExtension implements AfterEachCallback, ParameterResolver, TestInstancePostProcessor{
     private final Properties topologyProps = new Properties();
 
     @Override
@@ -27,7 +24,23 @@ public class TopologyTestDriverExtention implements AfterEachCallback, Parameter
     @Override
     public void afterEach(ExtensionContext context) throws Exception {
         resetTopologyProps();
-        closeDriverIfDefined(context);
+        closeDriver(context);
+    }
+
+    @Override
+    public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
+        if (!isValidTestClass(testInstance)){
+            throw new Exception("Tests ExtendedWith TopologyTestDriverExtension must implement TopologyTestDriverProvider");
+        }
+    }
+
+
+    private Object getTestInstance(ExtensionContext context){
+        return context.getTestInstance().get();
+    }
+
+    private boolean isValidTestClass(Object testInstance){
+        return TopologyTestDriverProvider.class.isAssignableFrom(testInstance.getClass());
     }
 
     private void resetTopologyProps(){
@@ -38,22 +51,9 @@ public class TopologyTestDriverExtention implements AfterEachCallback, Parameter
         topologyProps.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "test");
     }
 
-    private void closeDriverIfDefined(ExtensionContext context) throws IllegalAccessException {
-        try {
-            // Get instance of the Test Class that is being extended
-            Object testInstance = context.getTestInstance().get();
-
-            // Get the field with the TopologyTestDriver, assumed to be a field named 'driver'
-            Field driverField = testInstance.getClass().getDeclaredField("driver");
-
-            closeDriverAtFieldOnInstance(driverField, testInstance);
-        } catch (NoSuchFieldException e){
-            // NoOp - Don't do anything if 'driver' isn't define do the test
-        }
-    }
-
-    private void closeDriverAtFieldOnInstance(Field driverField, Object testInstance){
-        TopologyTestDriver driver  = getTopologyTestDriver(driverField, testInstance);
+    private void closeDriver(ExtensionContext context){
+        Object testInstance = getTestInstance(context);
+        TopologyTestDriver driver  = getTopologyTestDriver(testInstance);
 
         if (driver == null){
             return;
@@ -67,20 +67,12 @@ public class TopologyTestDriverExtention implements AfterEachCallback, Parameter
 
     }
 
-    private TopologyTestDriver getTopologyTestDriver(Field driverField, Object testInstance){
-        if (driverField.getType() != TopologyTestDriver.class){
-            return null;
-        }
-
-        driverField.setAccessible(true);
-
+    private TopologyTestDriver getTopologyTestDriver(Object testInstance){
         TopologyTestDriver driver = null;
-        try {
-            driver = (TopologyTestDriver) driverField.get(testInstance);
-        } catch (IllegalAccessException e) {
-            // Unexpected due to setAccessible(true) above
+        if (testInstance instanceof TopologyTestDriverProvider){
+            driver = ((TopologyTestDriverProvider)testInstance).getTopologyTestDriver();
         }
-
         return driver;
     }
+
 }

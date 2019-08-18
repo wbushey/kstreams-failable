@@ -24,8 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 
-@ExtendWith(org.apache.kafka.retryableTest.extentions.MockForeach.class)
-@ExtendWith(org.apache.kafka.retryableTest.extentions.MockRetryableExceptionForeach.class)
+@ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockForeach.class)
+@ExtendWith(org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeach.class)
 class KStreamRetryableForeachTest {
     /*
      * Mock ForeachActions and related helpers
