@@ -58,9 +58,10 @@ class KStreamRetryableForeachTest {
         @DisplayName("It schedules a retry via the retries state store if a RetryableException is thrown by the block")
         void testSchedulingRetry(){
             retryableDriver.pipeInput("key", "value");
+
             List<KeyValue<String, String>> scheduledJobs = new LinkedList<>();
-            final KeyValueStore<String, String> retriesStore = retryableDriver.getRetriesStateStore();
-            retriesStore.all().forEachRemaining(scheduledJobs::add);
+            retryableDriver.getRetriesStateStore().all().forEachRemaining(scheduledJobs::add);
+
             assertEquals(1, scheduledJobs.size());
             assertEquals("value", scheduledJobs.get(0).value);
         }

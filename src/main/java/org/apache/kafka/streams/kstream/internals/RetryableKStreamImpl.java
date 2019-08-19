@@ -20,8 +20,8 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
     // to the processing topology via `process`?
 
     private static final String RETRIES_STORE_SUFFIX = "-RETRIES_STORE";
+    private static final String RETRYABLE_FOREACH_PREFIX = "KSTREAM-RETRYABLE_FOREACH-";
 
-    private static final String RETRYABLE_FOREACH_NAME = "KSTREAM-RETRYABLE_FOREACH-";
     /*
      * Reflection is necessary since repartitionRequired is private with no getter, and KStreamImpl does not provide
      * a copy constructor.
@@ -58,21 +58,22 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
 
     @Override
     public void retryableForeach(final RetryableForeachAction<? super K, ? super V> action) {
-        retryableForeach(action, builder.newProcessorName(RETRYABLE_FOREACH_NAME));
+        retryableForeach(action, builder.newProcessorName(NamedInternal.empty().name()));
     }
 
     @Override
     public void retryableForeach(final RetryableForeachAction<? super K, ? super V> action, String name) {
         Objects.requireNonNull(action, "action can't be null");
         Objects.requireNonNull(name, "name can't be null");
-        final String retries_store_name = name.concat(RETRIES_STORE_SUFFIX);
+        final String nodeName = RETRYABLE_FOREACH_PREFIX.concat(name);
+        final String retries_store_name = nodeName.concat(RETRIES_STORE_SUFFIX);
 
 
         StoreBuilder<KeyValueStore<String, String>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
 
         final ProcessorParameters<? super K, ? super V> processorParameters = new ProcessorParameters<>(
                 new KStreamRetryableForeach<>(retries_store_name, action),
-                name
+                nodeName
         );
 
         final StatefulProcessorNode<? super K, ? super V> retriableForeachNode = new StatefulProcessorNode<>(name, processorParameters, retries_store_builder);
