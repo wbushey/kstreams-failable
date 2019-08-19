@@ -1,40 +1,46 @@
 package org.apache.kafka.streams.kstream.internals.models;
 
+import java.io.*;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 
 /**
  * A Task represents a received message that is enqueued to be retried. Tasks include the received message and metadata
  * about the past and current attempts to successfully process the message.
  *
- * @param <K> Type of message Keys
- * @param <V> Type of message Values
  */
-public class Task <K, V>{
+public class Task implements Serializable {
     // Base number of seconds to wait before reattempting a task. Total time to delay for a given attempt is
     // BASE_RETRY_BACKOFF_SECONDS ^ (AttemptNumber -1) .
     private static final Integer BASE_RETRY_BACKOFF_SECONDS = 2;
 
+    public static byte[] serialize(Task task) throws IOException {
+        return toByteArray(task);
+    }
+
+    public static Task deserialize(byte[] data) throws IOException, ClassNotFoundException {
+        return fromByteArray(data);
+    }
+
+
+
     // TODO maxAttempts should be configurable
     private final Integer maxAttempts = 10;
-    private final LocalDateTime timeReceived = LocalDateTime.now();
+    private final ZonedDateTime timeReceived = now();
     private final String topicOfOrigin;
     private Integer attemptsCount = 1;
-    private LocalDateTime timeOfNextAttempt;
+    private ZonedDateTime timeOfNextAttempt;
     private final Message message;
 
 
-    public Task(String topicOfOrigin, K key, V value) {
+    public Task(String topicOfOrigin, byte[] keyBytes, byte[] valueBytes) {
         this.topicOfOrigin = topicOfOrigin;
-        this.message = new Message<>(key, value);
-        updateTimeOfNextAttempt();
+        this.message = new Message(keyBytes, valueBytes);
+        this.timeOfNextAttempt = getNewTimeOfNextAttempt();
     }
 
-    private void updateTimeOfNextAttempt(){
-        this.timeOfNextAttempt = LocalDateTime.now().plus(Duration.ofSeconds(BASE_RETRY_BACKOFF_SECONDS));
-    }
-
-    public LocalDateTime getTimeReceived() {
+    public ZonedDateTime getTimeReceived() {
         return timeReceived;
     }
 
@@ -42,11 +48,11 @@ public class Task <K, V>{
         return topicOfOrigin;
     }
 
-    public LocalDateTime getTimeOfNextAttempt() {
+    public ZonedDateTime getTimeOfNextAttempt() {
         return timeOfNextAttempt;
     }
 
-    public void setTimeOfNextAttempt(LocalDateTime timeOfNextAttempt) {
+    public void setTimeOfNextAttempt(ZonedDateTime timeOfNextAttempt) {
         this.timeOfNextAttempt = timeOfNextAttempt;
     }
 
@@ -54,13 +60,41 @@ public class Task <K, V>{
         return message;
     }
 
-    static class Message<K, V>{
-        public final K key;
-        public final V value;
+    public static class Message implements Serializable {
+        public final byte[] keyBytes;
+        public final byte[] valueBytes;
 
-        private Message(K key, V value) {
-            this.key = key;
-            this.value = value;
+        private Message(byte[] keyBytes, byte[] valueBytes) {
+            this.keyBytes = keyBytes;
+            this.valueBytes = valueBytes;
         }
     }
+
+    private static ZonedDateTime now(){
+        return ZonedDateTime.now(ZoneOffset.UTC);
+    }
+
+    private static ZonedDateTime getNewTimeOfNextAttempt(){
+        return now().plus(Duration.ofSeconds(BASE_RETRY_BACKOFF_SECONDS));
+    }
+
+    private static byte[] toByteArray(Task task) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
+        oos.writeObject(task);
+        byte[] result = bos.toByteArray();
+        oos.close();
+        bos.close();
+        return result;
+    }
+
+    private static Task fromByteArray(byte[] data) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream boi = new ByteArrayInputStream(data);
+        ObjectInputStream ois = new ObjectInputStream(boi);
+        Task result = (Task) ois.readObject();
+        ois.close();
+        boi.close();
+        return result;
+    }
+
 }

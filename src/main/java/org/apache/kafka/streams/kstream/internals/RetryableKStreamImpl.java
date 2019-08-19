@@ -6,6 +6,8 @@ import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.graph.ProcessorParameters;
 import org.apache.kafka.streams.kstream.internals.graph.StatefulProcessorNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamsGraphNode;
+import org.apache.kafka.streams.kstream.internals.models.Task;
+import org.apache.kafka.streams.kstream.internals.serdes.TaskSerde;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
@@ -33,9 +35,7 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
             Field repartitionRequiredField = KStreamImpl.class.getDeclaredField("repartitionRequired");
             repartitionRequiredField.setAccessible(true);
             repartitionRequired = (Boolean) repartitionRequiredField.get(stream);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
+        } catch (IllegalAccessException | NoSuchFieldException e) {
             e.printStackTrace();
         }
 
@@ -69,7 +69,7 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
         final String retries_store_name = nodeName.concat(RETRIES_STORE_SUFFIX);
 
 
-        StoreBuilder<KeyValueStore<String, String>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
+        StoreBuilder<KeyValueStore<Long, Task>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
 
         final ProcessorParameters<? super K, ? super V> processorParameters = new ProcessorParameters<>(
                 new KStreamRetryableForeach<>(retries_store_name, action),
@@ -83,10 +83,10 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
     /*
      * Common setup for retries state stores
      */
-    private StoreBuilder<KeyValueStore<String, String>> getRetriesStoreBuilder(String retries_store_name){
+    private StoreBuilder<KeyValueStore<Long, Task>> getRetriesStoreBuilder(String retries_store_name){
         // TODO Fix types of this key value store
         return Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore(retries_store_name),
-                Serdes.String(), Serdes.String());
+                Serdes.Long(), new TaskSerde());
     }
 }
