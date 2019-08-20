@@ -3,22 +3,22 @@ package org.apache.kafka.streams.kstream.internals.serdes;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.kafka.streams.kstream.internals.models.Task;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 
 import java.io.IOException;
 import java.util.Map;
 
-public class TaskSerde implements Serde<Task> {
+public class TaskAttemptSerde implements Serde<TaskAttempt> {
     private final TaskSerializer serializer = new TaskSerializer();
     private final TaskDeserializer deserializer = new TaskDeserializer();
 
     @Override
-    public Serializer<Task> serializer() {
+    public Serializer<TaskAttempt> serializer() {
         return serializer;
     }
 
     @Override
-    public Deserializer<Task> deserializer() {
+    public Deserializer<TaskAttempt> deserializer() {
         return deserializer;
     }
 
@@ -35,12 +35,12 @@ public class TaskSerde implements Serde<Task> {
     }
 
 
-    private static class TaskSerializer implements Serializer<Task>{
+    private static class TaskSerializer implements Serializer<TaskAttempt>{
         @Override
-        public byte[] serialize(String topic, Task task) {
+        public byte[] serialize(String topic, TaskAttempt taskAttempt) {
             byte[] result = null;
             try {
-                result = Task.serialize(task);
+                result = TaskAttempt.serialize(taskAttempt);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -48,12 +48,12 @@ public class TaskSerde implements Serde<Task> {
         }
     }
 
-    private static class TaskDeserializer implements Deserializer<Task>{
+    private static class TaskDeserializer implements Deserializer<TaskAttempt>{
         @Override
-        public Task deserialize(String topic, byte[] data) {
-            Task result = null;
+        public TaskAttempt deserialize(String topic, byte[] data) {
+            TaskAttempt result = null;
             try {
-                result = Task.deserialize(data);
+                result = TaskAttempt.deserialize(data);
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }

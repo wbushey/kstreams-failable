@@ -22,7 +22,7 @@ public class TopologyTestDriverExtension implements AfterEachCallback, Parameter
     }
 
     @Override
-    public void afterEach(ExtensionContext context) throws Exception {
+    public void afterEach(ExtensionContext context) {
         resetTopologyProps();
         closeDriver(context);
     }

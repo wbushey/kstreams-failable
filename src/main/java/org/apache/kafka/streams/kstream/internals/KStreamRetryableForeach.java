@@ -1,9 +1,8 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.kstream.RetryableKStream;
-import org.apache.kafka.streams.kstream.internals.models.Task;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.processor.AbstractProcessor;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
@@ -25,7 +24,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
 
     private class RetryableKStreamRetryableForeachProcessor extends AbstractProcessor<K, V> {
         private ProcessorContext context;
-        private KeyValueStore<Long, Task> tasksStore;
+        private KeyValueStore<Long, TaskAttempt> tasksStore;
 
         @Override
         @SuppressWarnings("unchecked")
@@ -40,35 +39,39 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             try {
                 action.apply(key, value);
             } catch (RetryableKStream.RetryableException e) {
-                Task task = new Task(context.topic(), getBytesOfKey(key), getBytesOfValue(value));
-                tasksStore.put(task.getTimeOfNextAttempt().toInstant().toEpochMilli(), task);
+                TaskAttempt taskAttempt = new TaskAttempt(context.topic(), getBytesOfKey(key), getBytesOfValue(value));
+                tasksStore.put(taskAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), taskAttempt);
             } catch (RetryableKStream.FailableException e) {
                 e.printStackTrace();
             }
         }
 
+        @SuppressWarnings("unchecked")
         private byte[] getBytesOfKey(K key){
             final String topic = context.topic();
-            Serde<K> keySerde = (Serde<K>)context.keySerde();
+            Serde keySerde = context.keySerde();
             return keySerde.serializer().serialize(topic, key);
         }
 
+        @SuppressWarnings("unchecked")
         private K getKeyFromBytes(byte[] keyBytes){
             final String topic = context.topic();
-            Serde<K> keySerde = (Serde<K>)context.keySerde();
-            return keySerde.deserializer().deserialize(topic, keyBytes);
+            Serde keySerde = context.keySerde();
+            return (K)keySerde.deserializer().deserialize(topic, keyBytes);
         }
 
+        @SuppressWarnings("unchecked")
         private byte[] getBytesOfValue(V value){
             final String topic = context.topic();
-            Serde<V> valueSerde = (Serde<V>)context.valueSerde();
+            Serde valueSerde = context.valueSerde();
             return valueSerde.serializer().serialize(topic, value);
         }
 
+        @SuppressWarnings("unchecked")
         private V getValueFromBytes(byte[] valueBytes){
             final String topic = context.topic();
-            Serde<V> valueSerde = (Serde<V>)context.valueSerde();
-            return valueSerde.deserializer().deserialize(topic, valueBytes);
+            Serde valueSerde = context.valueSerde();
+            return (V)valueSerde.deserializer().deserialize(topic, valueBytes);
         }
 
     }

@@ -10,16 +10,16 @@ import java.time.ZonedDateTime;
  * about the past and current attempts to successfully process the message.
  *
  */
-public class Task implements Serializable {
+public class TaskAttempt implements Serializable {
     // Base number of seconds to wait before reattempting a task. Total time to delay for a given attempt is
     // BASE_RETRY_BACKOFF_SECONDS ^ (AttemptNumber -1) .
     private static final Integer BASE_RETRY_BACKOFF_SECONDS = 2;
 
-    public static byte[] serialize(Task task) throws IOException {
-        return toByteArray(task);
+    public static byte[] serialize(TaskAttempt taskAttempt) throws IOException {
+        return toByteArray(taskAttempt);
     }
 
-    public static Task deserialize(byte[] data) throws IOException, ClassNotFoundException {
+    public static TaskAttempt deserialize(byte[] data) throws IOException, ClassNotFoundException {
         return fromByteArray(data);
     }
 
@@ -34,7 +34,7 @@ public class Task implements Serializable {
     private final Message message;
 
 
-    public Task(String topicOfOrigin, byte[] keyBytes, byte[] valueBytes) {
+    public TaskAttempt(String topicOfOrigin, byte[] keyBytes, byte[] valueBytes) {
         this.topicOfOrigin = topicOfOrigin;
         this.message = new Message(keyBytes, valueBytes);
         this.timeOfNextAttempt = getNewTimeOfNextAttempt();
@@ -78,20 +78,20 @@ public class Task implements Serializable {
         return now().plus(Duration.ofSeconds(BASE_RETRY_BACKOFF_SECONDS));
     }
 
-    private static byte[] toByteArray(Task task) throws IOException {
+    private static byte[] toByteArray(TaskAttempt taskAttempt) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos);
-        oos.writeObject(task);
+        oos.writeObject(taskAttempt);
         byte[] result = bos.toByteArray();
         oos.close();
         bos.close();
         return result;
     }
 
-    private static Task fromByteArray(byte[] data) throws IOException, ClassNotFoundException {
+    private static TaskAttempt fromByteArray(byte[] data) throws IOException, ClassNotFoundException {
         ByteArrayInputStream boi = new ByteArrayInputStream(data);
         ObjectInputStream ois = new ObjectInputStream(boi);
-        Task result = (Task) ois.readObject();
+        TaskAttempt result = (TaskAttempt) ois.readObject();
         ois.close();
         boi.close();
         return result;

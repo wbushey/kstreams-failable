@@ -1,12 +1,13 @@
 package org.apache.kafka.streams.kstream.internals;
 
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.retryableTest.RetryableTestDriverTest;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeach;
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.retryableTest.Pair;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,11 +60,17 @@ class KStreamRetryableForeachTest {
         void testSchedulingRetry(){
             retryableDriver.pipeInput("key", "value");
 
-            List<KeyValue<String, String>> scheduledJobs = new LinkedList<>();
-            retryableDriver.getRetriesStateStore().all().forEachRemaining(scheduledJobs::add);
+            List<KeyValue<Long, TaskAttempt>> scheduledJobs = new LinkedList<>();
+            retryableDriver.getAttemptStateStore().all().forEachRemaining(scheduledJobs::add);
 
             assertEquals(1, scheduledJobs.size());
-            assertEquals("value", scheduledJobs.get(0).value);
+            Deserializer<String> keyDerializer = retryableDriver.getKeySerde().deserializer();
+            Deserializer<String> valueDerializer = retryableDriver.getValueSerde().deserializer();
+
+            assertEquals("key", keyDerializer.deserialize(retryableDriver.getInputTopicName(),
+                                                                    scheduledJobs.get(0).value.getMessage().keyBytes));
+            assertEquals("value", valueDerializer.deserialize(retryableDriver.getInputTopicName(),
+                                                                        scheduledJobs.get(0).value.getMessage().valueBytes));
         }
     }
 

@@ -9,6 +9,7 @@ import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.RetryableForeachAction;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
@@ -21,21 +22,27 @@ public class RetryableKStreamTestDriver<K, V>{
     private static final String RETRYABLE_FOREACH_PREFIX = "KSTREAM-RETRYABLE_FOREACH-";
     private static final String DEFAULT_TEST_INPUT_TOPIC_NAME = "TestTopic";
     private static final String DEFAULT_TEST_NODE_NAME = "TestNode";
+    private final Serde<K> keySerde;
+    private final Serde<V> valueSerde;
     private final Topology topology;
+    private final String inputTopicName;
     private final TopologyTestDriver driver;
     private final ConsumerRecordFactory<K, V> consumerRecordFactory;
 
     public RetryableKStreamTestDriver(RetryableForeachAction<K, V> action, Serde<K> keySerde, Serde<V> valueSerde, Properties streamsProps){
+        this.keySerde = keySerde;
+        this.valueSerde = valueSerde;
+        this.inputTopicName = DEFAULT_TEST_INPUT_TOPIC_NAME;
         final StreamsBuilder builder = new StreamsBuilder();
-        final Consumed<K, V> consumed = Consumed.with(keySerde, valueSerde);
-        final KStream<K, V> kStream = builder.stream(DEFAULT_TEST_INPUT_TOPIC_NAME, consumed);
+        final Consumed<K, V> consumed = Consumed.with(this.keySerde, this.valueSerde);
+        final KStream<K, V> kStream = builder.stream(inputTopicName, consumed);
         final RetryableKStream<K, V> retriableStream = RetryableKStream.fromKStream(kStream);
         retriableStream.retryableForeach(action, DEFAULT_TEST_NODE_NAME);
 
         this.topology = builder.build();
         this.driver = new TopologyTestDriver(this.topology, streamsProps);
-        this.consumerRecordFactory = new ConsumerRecordFactory<>(DEFAULT_TEST_INPUT_TOPIC_NAME,
-                keySerde.serializer(), valueSerde.serializer());
+        this.consumerRecordFactory = new ConsumerRecordFactory<>(inputTopicName,
+                this.keySerde.serializer(), this.valueSerde.serializer());
     }
 
     /**
@@ -70,29 +77,41 @@ public class RetryableKStreamTestDriver<K, V>{
     }
 
     /**
-     * Get the state store used to store job retry information in the test topology for the default Retryable node
-     * @return KeyValueStateStore containing retry data
+     * Get the state store used to store task attempt information in the test topology for the default Retryable node
+     * @return KeyValueStateStore containing task attempt data
      */
-    public KeyValueStore<String, String> getRetriesStateStore(){
-        return getRetriesStateStore(DEFAULT_TEST_NODE_NAME);
+    public KeyValueStore<Long, TaskAttempt> getAttemptStateStore(){
+        return getAttemptStateStore(DEFAULT_TEST_NODE_NAME);
     }
 
     /**
-     * Get the state store used to store job retry information in the test topology for the specified node
-     * @return KeyValueStateStore containing retry data
+     * Get the state store used to store task attempt information in the test topology for the specified node
+     * @return KeyValueStateStore containing task attempt data
      */
-    public KeyValueStore<String, String> getRetriesStateStore(String nodeName){
+    public KeyValueStore<Long, TaskAttempt> getAttemptStateStore(String nodeName){
         return driver.getKeyValueStore(RETRYABLE_FOREACH_PREFIX.concat(nodeName.concat(RETRIES_STORE_SUFFIX)));
     }
 
     /**
      * @return A List of all state stores in the test topology used to store retry information
      */
-    public Map<String, StateStore> getAllRetriesStateStores(){
+    public Map<String, StateStore> getAllAttemptStateStores(){
         return driver.getAllStateStores().entrySet()
                 .stream()
                 .filter(map -> map.getKey().endsWith("-RETRIES_STORE"))
                 .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+    }
+
+    public Serde<K> getKeySerde() {
+        return keySerde;
+    }
+
+    public Serde<V> getValueSerde() {
+        return valueSerde;
+    }
+
+    public String getInputTopicName(){
+        return inputTopicName;
     }
 
     public TopologyTestDriver getTopologyTestDriver(){
