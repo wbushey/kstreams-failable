@@ -1,7 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.retryableTest.RetryableTestDriverTest;
+import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
@@ -25,7 +25,7 @@ class KStreamRetryableForeachTest {
     @Nested
     @DisplayName("When supplied with a successful lambda")
     @ExtendWith(MockSuccessfulForeachExtension.class)
-    class WhenSuccessfulAction extends RetryableTestDriverTest {
+    class WhenSuccessfulAction extends WithRetryableTopologyTestDriver {
         WhenSuccessfulAction(MockSuccessfulForeach<String, String> action, Properties topologyProps){
             super(action, topologyProps);
         }
@@ -42,7 +42,7 @@ class KStreamRetryableForeachTest {
     @Nested
     @DisplayName("When supplied with a lambda that throws a RetryableException")
     @ExtendWith(MockRetryableExceptionForeachExtension.class)
-    class WhenRetryableExceptions extends RetryableTestDriverTest{
+    class WhenRetryableExceptions extends WithRetryableTopologyTestDriver {
         WhenRetryableExceptions(MockRetryableExceptionForeach<String, String> action, Properties topologyProps){
             super(action, topologyProps);
         }
@@ -64,8 +64,8 @@ class KStreamRetryableForeachTest {
             retryableDriver.getAttemptStateStore().all().forEachRemaining(scheduledJobs::add);
 
             assertEquals(1, scheduledJobs.size());
-            Deserializer<String> keyDerializer = retryableDriver.getKeySerde().deserializer();
-            Deserializer<String> valueDerializer = retryableDriver.getValueSerde().deserializer();
+            Deserializer<String> keyDerializer = retryableDriver.getDefaultKeySerde().deserializer();
+            Deserializer<String> valueDerializer = retryableDriver.getDefaultValueSerde().deserializer();
 
             assertEquals("key", keyDerializer.deserialize(retryableDriver.getInputTopicName(),
                                                                     scheduledJobs.get(0).value.getMessage().keyBytes));

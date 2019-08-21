@@ -1,6 +1,6 @@
 package org.apache.kafka.streams.kstream.internals;
 
-import org.apache.kafka.retryableTest.RetryableTestDriverTest;
+import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
 import org.junit.jupiter.api.Disabled;
@@ -14,16 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @ExtendWith(MockSuccessfulForeachExtension.class)
-class RetryableKStreamImplTest extends RetryableTestDriverTest {
-
-
-    /* TODO
-     *  Why are tests in this class deadlocking on TopologyTestDriver folder? Possibilities:
-     *      * There is a Serialization/Deserialization exception happening and being swallowed. Appropriate Exceptions should be thrown
-     *      * More tests are creating StateStores now. What changed about the tests and/or RetryableKStreamImpl in the last 3 commits?
-     *          * Checked this out; the most significant change between when tests last worked and now is the move to serialize TaskAttempts
-     *      * TopologyTestDriver attempts to get folder lock on construction? If so, construction should happen in BeforeEach instead of test instantiation.
-     */
+class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
 
 
     RetryableKStreamImplTest(MockSuccessfulForeach<String, String> mockForeach, Properties topologyProps) {
@@ -34,8 +25,8 @@ class RetryableKStreamImplTest extends RetryableTestDriverTest {
     @DisplayName("Should add the retryable node to the topology")
     void addsRetryableNodeToTopology() {
         // TODO This should test for more than 1 retryable node
-        assertEquals(1, this.retryableDriver.getAllRetryNodes().size());
-        assertNotNull(this.retryableDriver.getRetryNode());
+        assertEquals(1, this.retryableDriver.getTestTopology().getAllRetryNodes().size());
+        assertNotNull(this.retryableDriver.getTestTopology().getRetryNode());
     }
 
     @Test

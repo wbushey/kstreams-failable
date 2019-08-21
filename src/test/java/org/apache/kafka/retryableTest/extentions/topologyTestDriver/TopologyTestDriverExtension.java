@@ -7,7 +7,7 @@ import org.junit.jupiter.api.extension.*;
 
 import java.util.Properties;
 
-public class TopologyTestDriverExtension implements AfterEachCallback, ParameterResolver, TestInstancePostProcessor{
+public class TopologyTestDriverExtension implements AfterEachCallback, BeforeEachCallback, ParameterResolver, TestInstancePostProcessor{
     private final Properties topologyProps = new Properties();
 
     @Override
@@ -22,6 +22,11 @@ public class TopologyTestDriverExtension implements AfterEachCallback, Parameter
     }
 
     @Override
+    public void beforeEach(ExtensionContext context) throws Exception {
+        createTopologyTestDriver(context);
+    }
+
+    @Override
     public void afterEach(ExtensionContext context) {
         resetTopologyProps();
         closeDriver(context);
@@ -30,17 +35,16 @@ public class TopologyTestDriverExtension implements AfterEachCallback, Parameter
     @Override
     public void postProcessTestInstance(Object testInstance, ExtensionContext context) throws Exception {
         if (!isValidTestClass(testInstance)){
-            throw new Exception("Tests ExtendedWith TopologyTestDriverExtension must implement TopologyTestDriverProvider");
+            throw new Exception("Tests ExtendedWith TopologyTestDriverExtension must implement WithTopologyTestDriver");
         }
     }
-
 
     private Object getTestInstance(ExtensionContext context){
         return context.getTestInstance().get();
     }
 
     private boolean isValidTestClass(Object testInstance){
-        return TopologyTestDriverProvider.class.isAssignableFrom(testInstance.getClass());
+        return WithTopologyTestDriver.class.isAssignableFrom(testInstance.getClass());
     }
 
     private void resetTopologyProps(){
@@ -69,10 +73,17 @@ public class TopologyTestDriverExtension implements AfterEachCallback, Parameter
 
     private TopologyTestDriver getTopologyTestDriver(Object testInstance){
         TopologyTestDriver driver = null;
-        if (testInstance instanceof TopologyTestDriverProvider){
-            driver = ((TopologyTestDriverProvider)testInstance).getTopologyTestDriver();
+        if (testInstance instanceof WithTopologyTestDriver){
+            driver = ((WithTopologyTestDriver)testInstance).getTopologyTestDriver();
         }
         return driver;
+    }
+
+    private void createTopologyTestDriver(ExtensionContext context){
+        Object testInstance = getTestInstance(context);
+        if (testInstance instanceof WithTopologyTestDriver){
+            ((WithTopologyTestDriver)testInstance).createTopologyTestDriver();
+        }
     }
 
 }
