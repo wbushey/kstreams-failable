@@ -13,8 +13,8 @@ public interface MockCallback<K, V> {
     public RetryableForeachAction<K, V> getCallback();
 
     /**
-     * Returns a list of records received by the callback.
+     * Returns a list of parameters received by the callback.
      * @return
      */
-    public List<Pair> getReceivedRecords();
+    public List<Pair> getReceivedParameters();
 }

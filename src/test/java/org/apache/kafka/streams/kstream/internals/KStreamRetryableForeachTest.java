@@ -1,6 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.retryableTest.RetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
@@ -9,9 +10,11 @@ import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeac
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.retryableTest.Pair;
+import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,8 +37,27 @@ class KStreamRetryableForeachTest {
         @DisplayName("It immediately attempts to execute the provided block")
         void testImmediateExecution(){
             retryableDriver.pipeInput("key", "value");
-            assertEquals(Collections.singletonList(new Pair<>("key", "value")), action.getReceivedRecords());
+            assertEquals(Collections.singletonList(new Pair<>("key", "value")), action.getReceivedParameters());
         }
+
+
+        @Test
+        @DisplayName("It deletes a retry from the attempts state store once it is been executed successfully")
+        void testRetryDeletionOnSuccess(){
+            // Assert no attempts are currently in the store
+            KeyValueStore<Long, TaskAttempt> attemptsStore = retryableDriver.getAttemptStateStore();
+            assertEquals(0, attemptsStore.approximateNumEntries());
+
+            // Add an attempt to the store
+            TaskAttempt testAttempt = createTestTaskAttempt("key", "value", retryableDriver);
+            retryableDriver.getAttemptStateStore().put(ZonedDateTime.now().toInstant().toEpochMilli(), testAttempt);
+            assertEquals(1, attemptsStore.approximateNumEntries());
+
+            // Execute the attempt, then assert that no attempts are in the store
+            retryableDriver.getTopologyTestDriver().advanceWallClockTime(3000L);
+            assertEquals(0, attemptsStore.approximateNumEntries());
+        }
+
 
     }
 
@@ -51,7 +73,7 @@ class KStreamRetryableForeachTest {
         @DisplayName("It immediately attempts to execute the provided block")
         void testImmediateExecution(){
             retryableDriver.pipeInput("key", "value");
-            assertEquals(Collections.singletonList(new Pair<>("key", "value")), action.getReceivedRecords());
+            assertEquals(Collections.singletonList(new Pair<>("key", "value")), action.getReceivedParameters());
         }
 
 
@@ -72,14 +94,23 @@ class KStreamRetryableForeachTest {
             assertEquals("value", valueDerializer.deserialize(retryableDriver.getInputTopicName(),
                                                                         scheduledJobs.get(0).value.getMessage().valueBytes));
         }
+
+        @Test
+        @DisplayName("It executes a retry after some time has passed")
+        void testPerformRetry(){
+            retryableDriver.pipeInput("key", "value");
+            assertEquals(1, action.getReceivedParameters().size());
+
+            // Advance stream time by 3 second
+            retryableDriver.getTopologyTestDriver().advanceWallClockTime(3000L);
+
+            assertEquals(2, action.getReceivedParameters().size());
+        }
+
+
     }
 
 
-
-    @Disabled
-    @Test
-    @DisplayName("It deletes a retry from the retries state store once it is been executed successfully")
-    void testRetryDeletionOnSuccess(){}
 
     @Disabled
     @Test
@@ -100,16 +131,6 @@ class KStreamRetryableForeachTest {
     @Test
     @DisplayName("It schedules another retry via the retries state store if a retry is executed and throws a RetryableException")
     void testRetryRetryOnRetryableException(){}
-
-    @Disabled
-    @Test
-    @DisplayName("It schedules retry punctuation at appropriate interval")
-    void testPunctuateScheduling(){}
-
-    @Disabled
-    @Test
-    @DisplayName("It executes scheduled retries on punctuate")
-    void testPunctuateExecution(){}
 
     @Disabled
     @Test
@@ -145,5 +166,15 @@ class KStreamRetryableForeachTest {
     @Test
     @DisplayName("It closes the scheduled retries state store when closed")
     void testCloseStateStoreOnClose(){}
+
+
+    private TaskAttempt createTestTaskAttempt(String key, String value, RetryableTopologyTestDriver<String, String> retryableTopologyTestDriver){
+        String topicName = retryableTopologyTestDriver.getInputTopicName();
+        return new TaskAttempt(
+                topicName,
+                retryableTopologyTestDriver.getDefaultKeySerde().serializer().serialize(topicName, key),
+                retryableTopologyTestDriver.getDefaultValueSerde().serializer().serialize(topicName, value)
+        );
+    }
 }
 

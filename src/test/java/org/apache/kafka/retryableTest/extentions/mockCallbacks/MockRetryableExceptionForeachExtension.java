@@ -17,6 +17,6 @@ public class MockRetryableExceptionForeachExtension implements BeforeEachCallbac
 
     @Override
     public void beforeEach(ExtensionContext context) throws Exception {
-        mockCallback.getReceivedRecords().clear();
+        mockCallback.getReceivedParameters().clear();
     }
 }

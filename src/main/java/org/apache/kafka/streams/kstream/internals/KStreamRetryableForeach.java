@@ -3,14 +3,17 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.streams.processor.AbstractProcessor;
-import org.apache.kafka.streams.processor.Processor;
-import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.processor.ProcessorSupplier;
+import org.apache.kafka.streams.processor.*;
+import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
+
+import java.time.Duration;
+
+// TODO Add logging
 
 public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
 
+    private static final Long ATTEMPTS_PUNCTUATE_INTERVAL_MS = 500L;
     private final RetryableForeachAction<? super K, ? super V> action;
     private final String tasksStoreName;
 
@@ -25,6 +28,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
     private class RetryableKStreamRetryableForeachProcessor extends AbstractProcessor<K, V> {
         private ProcessorContext context;
         private KeyValueStore<Long, TaskAttempt> tasksStore;
+        private Long timeOfLastQuery = 0L;
 
         @Override
         @SuppressWarnings("unchecked")
@@ -32,15 +36,34 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             this.context = context;
 
             this.tasksStore = (KeyValueStore) context.getStateStore(tasksStoreName);
+
+            this.context.schedule(Duration.ofMillis(ATTEMPTS_PUNCTUATE_INTERVAL_MS), PunctuationType.WALL_CLOCK_TIME,
+                    (timestamp) -> { performAttemptsScheduledFor(timestamp); });
         }
 
         @Override
         public void process(final K key, final V value){
+            TaskAttempt attempt = new TaskAttempt(context.topic(), getBytesOfKey(key), getBytesOfValue(value));
+            performAttempt(attempt);
+        }
+
+        private void performAttemptsScheduledFor(Long punctuateTimestamp){
+            KeyValueIterator<Long, TaskAttempt> scheduledTasks = this.tasksStore.range(timeOfLastQuery, punctuateTimestamp);
+            scheduledTasks.forEachRemaining(scheduledTask -> {
+                this.tasksStore.delete(scheduledTask.key);
+                performAttempt(scheduledTask.value);
+            });
+            timeOfLastQuery = punctuateTimestamp;
+        }
+
+        private void performAttempt(TaskAttempt attempt){
+            K key = getKeyFromBytes(attempt.getMessage().keyBytes);
+            V value = getValueFromBytes(attempt.getMessage().valueBytes);
+
             try {
                 action.apply(key, value);
             } catch (RetryableKStream.RetryableException e) {
-                TaskAttempt taskAttempt = new TaskAttempt(context.topic(), getBytesOfKey(key), getBytesOfValue(value));
-                tasksStore.put(taskAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), taskAttempt);
+                tasksStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
             } catch (RetryableKStream.FailableException e) {
                 e.printStackTrace();
             }

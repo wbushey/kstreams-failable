@@ -14,5 +14,5 @@ public class MockSuccessfulForeach<K, V> implements MockCallback<K, V> {
     public RetryableForeachAction<K, V> getCallback() { return mockForeach; }
 
     @Override
-    public List<Pair> getReceivedRecords() { return receivedRecords; }
+    public List<Pair> getReceivedParameters() { return receivedRecords; }
 }
