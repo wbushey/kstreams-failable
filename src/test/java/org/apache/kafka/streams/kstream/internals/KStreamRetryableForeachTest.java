@@ -1,6 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.RetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
@@ -10,7 +11,11 @@ import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeac
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.retryableTest.Pair;
+import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
+import org.apache.kafka.streams.processor.MockProcessorContext;
+import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.Stores;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -44,18 +49,32 @@ class KStreamRetryableForeachTest {
         @Test
         @DisplayName("It deletes a retry from the attempts state store once it is been executed successfully")
         void testRetryDeletionOnSuccess(){
-            // Assert no attempts are currently in the store
-            KeyValueStore<Long, TaskAttempt> attemptsStore = retryableDriver.getAttemptStateStore();
-            assertEquals(0, attemptsStore.approximateNumEntries());
+            Processor subject = new KStreamRetryableForeach<String, String>("testAttemptsStore", action.getCallback()).get();
+            MockProcessorContext context = new MockProcessorContext();
+            final KeyValueStore<Long, TaskAttempt> store =
+                    Stores.keyValueStoreBuilder(
+                            Stores.inMemoryKeyValueStore("testAttemptsStore"),
+                            Serdes.Long(),
+                            new TaskAttemptSerde()
+                    )
+                            .withLoggingDisabled() // Changelog is not supported by MockProcessorContext.
+                            .build();
+            store.init(context, store);
+            context.setTopic("testTopic");
+            context.register(store, null);
+            subject.init(context);
+
+            assertEquals(0, store.approximateNumEntries());
 
             // Add an attempt to the store
             TaskAttempt testAttempt = createTestTaskAttempt("key", "value", retryableDriver);
-            retryableDriver.getAttemptStateStore().put(ZonedDateTime.now().toInstant().toEpochMilli(), testAttempt);
-            assertEquals(1, attemptsStore.approximateNumEntries());
+            store.put(ZonedDateTime.now().toInstant().toEpochMilli(), testAttempt);
+            assertEquals(1, store.approximateNumEntries());
 
             // Execute the attempt, then assert that no attempts are in the store
-            retryableDriver.getTopologyTestDriver().advanceWallClockTime(3000L);
-            assertEquals(0, attemptsStore.approximateNumEntries());
+            context.scheduledPunctuators().get(0).getPunctuator().punctuate(ZonedDateTime.now().toInstant().toEpochMilli());
+            assertEquals(0, store.approximateNumEntries());
+
         }
 
 
