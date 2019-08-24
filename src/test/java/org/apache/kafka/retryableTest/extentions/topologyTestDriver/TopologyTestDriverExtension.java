@@ -7,7 +7,7 @@ import org.junit.jupiter.api.extension.*;
 
 public class TopologyTestDriverExtension
         extends TopologyPropertiesExtension
-        implements AfterEachCallback, BeforeEachCallback, ParameterResolver, TestInstancePostProcessor {
+        implements AfterEachCallback, BeforeEachCallback, TestInstancePostProcessor {
 
     @Override
     public void beforeEach(ExtensionContext context){
@@ -16,7 +16,6 @@ public class TopologyTestDriverExtension
 
     @Override
     public void afterEach(ExtensionContext context) {
-        resetTopologyProps();
         closeDriver(context);
     }
 

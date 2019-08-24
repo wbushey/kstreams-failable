@@ -7,6 +7,7 @@ import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.processor.Processor;
+import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.Stores;
 
@@ -57,6 +58,10 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
         return mockContext;
     }
 
+    public Punctuator getRetryPunctuator(){
+        return mockContext.scheduledPunctuators().get(0).getPunctuator();
+    }
+
     @Override
     public String getInputTopicName(){
         return inputTopicName;
@@ -75,6 +80,11 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
     @Override
     public KeyValueStore<Long, TaskAttempt> getAttemptStore() {
         return attemptsStore;
+    }
+
+    @Override
+    public void pipeInput(K key, V value) {
+        processor.process(key, value);
     }
 
 }

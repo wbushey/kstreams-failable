@@ -9,21 +9,28 @@ public interface RetryableTestDriver<K, V> {
     /**
      * @return The name of the input topic
      */
-    public String getInputTopicName();
+    String getInputTopicName();
 
 
     /**
      * @return The default Key Serde
      */
-    public Serde<K> getDefaultKeySerde();
+    Serde<K> getDefaultKeySerde();
 
     /**
      * @return The default Value Serde
      */
-    public Serde<V> getDefaultValueSerde();
+    Serde<V> getDefaultValueSerde();
 
     /**
      * @return StateStore for task attempts
      */
-    public KeyValueStore<Long, TaskAttempt> getAttemptStore();
+    KeyValueStore<Long, TaskAttempt> getAttemptStore();
+
+    /**
+     * Send a message to the input topic
+     * @param key   Key of the message to send
+     * @param value Value of the message to send
+     */
+    void pipeInput(K key, V value);
 }

@@ -1,8 +1,10 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.WithRetryableMockProcessorContext;
-import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
+import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
@@ -13,18 +15,40 @@ import org.apache.kafka.retryableTest.Pair;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Stream;
 
+import static org.apache.kafka.retryableTest.TopologyFactory.createTopologyProps;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
+@ExtendWith(TopologyPropertiesExtension.class)
 class KStreamRetryableForeachTest {
 
+
+    /*
+     * Test cases that apply regardless of whether the supplied action succeeds or throws an Exception
+     */
+    @ParameterizedTest
+    @DisplayName("It immediately attempts to execute the provided block")
+    @MethodSource("retryableProcessorDriverProvider")
+    void testImmediateExecution(RetryableProcessorTestDriver<String, String> processorTestDriver){
+        processorTestDriver.getProcessor().process("key", "value");
+        assertEquals(Collections.singletonList(new Pair<>("key", "value")), processorTestDriver.getAction().getReceivedParameters());
+    }
+
+
+    /*
+     * Test cases specific to behavior when the action succeed upon execution/retry
+     */
     @Nested
     @DisplayName("When supplied with a successful lambda")
     @ExtendWith(MockSuccessfulForeachExtension.class)
@@ -32,14 +56,6 @@ class KStreamRetryableForeachTest {
         WhenSuccessfulAction(MockSuccessfulForeach<String, String> action, Properties topologyProps){
             super(action, topologyProps);
         }
-
-        @Test
-        @DisplayName("It immediately attempts to execute the provided block")
-        void testImmediateExecution(){
-            processorTestDriver.getProcessor().process("key", "value");
-            assertEquals(Collections.singletonList(new Pair<>("key", "value")), processorTestDriver.getAction().getReceivedParameters());
-        }
-
 
         @Test
         @DisplayName("It deletes a retry from the attempts state store once it is been executed successfully")
@@ -53,61 +69,52 @@ class KStreamRetryableForeachTest {
             assertEquals(1, attemptsStore.approximateNumEntries());
 
             // Execute the attempt, then assert that no attempts are in the store
-            processorTestDriver.getContext().scheduledPunctuators().get(0).getPunctuator().punctuate(ZonedDateTime.now().toInstant().toEpochMilli());
+            processorTestDriver.getRetryPunctuator().punctuate(ZonedDateTime.now().toInstant().toEpochMilli());
             assertEquals(0, attemptsStore.approximateNumEntries());
-
         }
-
-
     }
 
+
+    /*
+     * Test cases specific to behavior when the action throws a RetryableException
+     */
     @Nested
     @DisplayName("When supplied with a lambda that throws a RetryableException")
     @ExtendWith(MockRetryableExceptionForeachExtension.class)
-    class WhenRetryableExceptions extends WithRetryableTopologyTestDriver {
+    class WhenRetryableExceptions extends WithRetryableMockProcessorContext{
         WhenRetryableExceptions(MockRetryableExceptionForeach<String, String> action, Properties topologyProps){
             super(action, topologyProps);
         }
 
         @Test
-        @DisplayName("It immediately attempts to execute the provided block")
-        void testImmediateExecution(){
-            retryableDriver.pipeInput("key", "value");
-            assertEquals(Collections.singletonList(new Pair<>("key", "value")), action.getReceivedParameters());
-        }
-
-
-        @Test
         @DisplayName("It schedules a retry via the retries state store if a RetryableException is thrown by the block")
         void testSchedulingRetry(){
-            retryableDriver.pipeInput("key", "value");
+            processorTestDriver.pipeInput("key", "value");
 
             List<KeyValue<Long, TaskAttempt>> scheduledJobs = new LinkedList<>();
-            retryableDriver.getAttemptStore().all().forEachRemaining(scheduledJobs::add);
+            processorTestDriver.getAttemptStore().all().forEachRemaining(scheduledJobs::add);
 
             assertEquals(1, scheduledJobs.size());
-            Deserializer<String> keyDerializer = retryableDriver.getDefaultKeySerde().deserializer();
-            Deserializer<String> valueDerializer = retryableDriver.getDefaultValueSerde().deserializer();
+            Deserializer<String> keyDerializer = processorTestDriver.getDefaultKeySerde().deserializer();
+            Deserializer<String> valueDerializer = processorTestDriver.getDefaultValueSerde().deserializer();
 
-            assertEquals("key", keyDerializer.deserialize(retryableDriver.getInputTopicName(),
+            assertEquals("key", keyDerializer.deserialize(processorTestDriver.getInputTopicName(),
                                                                     scheduledJobs.get(0).value.getMessage().keyBytes));
-            assertEquals("value", valueDerializer.deserialize(retryableDriver.getInputTopicName(),
+            assertEquals("value", valueDerializer.deserialize(processorTestDriver.getInputTopicName(),
                                                                         scheduledJobs.get(0).value.getMessage().valueBytes));
         }
 
         @Test
-        @DisplayName("It executes a retry after some time has passed")
+        @DisplayName("It executes a retry on punctuate that has been scheduled to execute at the time of punctuation")
         void testPerformRetry(){
-            retryableDriver.pipeInput("key", "value");
-            assertEquals(1, action.getReceivedParameters().size());
+            processorTestDriver.pipeInput("key", "value");
+            assertEquals(1, processorTestDriver.getAction().getReceivedParameters().size());
 
             // Advance stream time by 3 second
-            retryableDriver.getTopologyTestDriver().advanceWallClockTime(3000L);
+            processorTestDriver.getRetryPunctuator().punctuate(ZonedDateTime.now().plus(Duration.ofSeconds(3)).toInstant().toEpochMilli());
 
-            assertEquals(2, action.getReceivedParameters().size());
+            assertEquals(2, processorTestDriver.getAction().getReceivedParameters().size());
         }
-
-
     }
 
 
@@ -175,6 +182,14 @@ class KStreamRetryableForeachTest {
                 retryableTestDriver.getDefaultKeySerde().serializer().serialize(topicName, key),
                 retryableTestDriver.getDefaultValueSerde().serializer().serialize(topicName, value)
         );
+    }
+
+    private static Stream<RetryableProcessorTestDriver<String, String>> retryableProcessorDriverProvider(){
+        final Serde<String> stringSerde = Serdes.String();
+
+        return Stream.of(new MockSuccessfulForeach<String, String>(),
+                         new MockRetryableExceptionForeach<String, String>())
+                .map(mockCallback -> new RetryableProcessorTestDriver<>(mockCallback, createTopologyProps(), stringSerde, stringSerde));
     }
 }
 
