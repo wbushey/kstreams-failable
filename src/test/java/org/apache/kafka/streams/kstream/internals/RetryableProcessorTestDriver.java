@@ -3,6 +3,7 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.mockCallbacks.MockCallback;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.processor.MockProcessorContext;
@@ -11,6 +12,8 @@ import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.Stores;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 
 public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K, V> {
@@ -85,6 +88,12 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
     @Override
     public void pipeInput(K key, V value) {
         processor.process(key, value);
+    }
+
+    public List<KeyValue<Long, TaskAttempt>> getScheduledTaskAttempts(){
+        List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = new LinkedList<>();
+        getAttemptStore().all().forEachRemaining(scheduledTaskAttempts::add);
+        return scheduledTaskAttempts;
     }
 
 }
