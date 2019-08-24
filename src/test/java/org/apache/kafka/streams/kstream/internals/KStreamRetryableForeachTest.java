@@ -1,8 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.RetryableTopologyTestDriver;
+import org.apache.kafka.retryableTest.WithRetryableMockProcessorContext;
 import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
@@ -11,11 +10,7 @@ import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeac
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.retryableTest.Pair;
-import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
-import org.apache.kafka.streams.processor.MockProcessorContext;
-import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.Stores;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -33,7 +28,7 @@ class KStreamRetryableForeachTest {
     @Nested
     @DisplayName("When supplied with a successful lambda")
     @ExtendWith(MockSuccessfulForeachExtension.class)
-    class WhenSuccessfulAction extends WithRetryableTopologyTestDriver {
+    class WhenSuccessfulAction extends WithRetryableMockProcessorContext {
         WhenSuccessfulAction(MockSuccessfulForeach<String, String> action, Properties topologyProps){
             super(action, topologyProps);
         }
@@ -41,39 +36,25 @@ class KStreamRetryableForeachTest {
         @Test
         @DisplayName("It immediately attempts to execute the provided block")
         void testImmediateExecution(){
-            retryableDriver.pipeInput("key", "value");
-            assertEquals(Collections.singletonList(new Pair<>("key", "value")), action.getReceivedParameters());
+            processorTestDriver.getProcessor().process("key", "value");
+            assertEquals(Collections.singletonList(new Pair<>("key", "value")), processorTestDriver.getAction().getReceivedParameters());
         }
 
 
         @Test
         @DisplayName("It deletes a retry from the attempts state store once it is been executed successfully")
         void testRetryDeletionOnSuccess(){
-            Processor subject = new KStreamRetryableForeach<String, String>("testAttemptsStore", action.getCallback()).get();
-            MockProcessorContext context = new MockProcessorContext();
-            final KeyValueStore<Long, TaskAttempt> store =
-                    Stores.keyValueStoreBuilder(
-                            Stores.inMemoryKeyValueStore("testAttemptsStore"),
-                            Serdes.Long(),
-                            new TaskAttemptSerde()
-                    )
-                            .withLoggingDisabled() // Changelog is not supported by MockProcessorContext.
-                            .build();
-            store.init(context, store);
-            context.setTopic("testTopic");
-            context.register(store, null);
-            subject.init(context);
-
-            assertEquals(0, store.approximateNumEntries());
+            KeyValueStore<Long, TaskAttempt> attemptsStore = processorTestDriver.getAttemptStore();
+            assertEquals(0, attemptsStore.approximateNumEntries());
 
             // Add an attempt to the store
-            TaskAttempt testAttempt = createTestTaskAttempt("key", "value", retryableDriver);
-            store.put(ZonedDateTime.now().toInstant().toEpochMilli(), testAttempt);
-            assertEquals(1, store.approximateNumEntries());
+            TaskAttempt testAttempt = createTestTaskAttempt("key", "value", processorTestDriver);
+            attemptsStore.put(ZonedDateTime.now().toInstant().toEpochMilli(), testAttempt);
+            assertEquals(1, attemptsStore.approximateNumEntries());
 
             // Execute the attempt, then assert that no attempts are in the store
-            context.scheduledPunctuators().get(0).getPunctuator().punctuate(ZonedDateTime.now().toInstant().toEpochMilli());
-            assertEquals(0, store.approximateNumEntries());
+            processorTestDriver.getContext().scheduledPunctuators().get(0).getPunctuator().punctuate(ZonedDateTime.now().toInstant().toEpochMilli());
+            assertEquals(0, attemptsStore.approximateNumEntries());
 
         }
 
@@ -102,7 +83,7 @@ class KStreamRetryableForeachTest {
             retryableDriver.pipeInput("key", "value");
 
             List<KeyValue<Long, TaskAttempt>> scheduledJobs = new LinkedList<>();
-            retryableDriver.getAttemptStateStore().all().forEachRemaining(scheduledJobs::add);
+            retryableDriver.getAttemptStore().all().forEachRemaining(scheduledJobs::add);
 
             assertEquals(1, scheduledJobs.size());
             Deserializer<String> keyDerializer = retryableDriver.getDefaultKeySerde().deserializer();
@@ -187,12 +168,12 @@ class KStreamRetryableForeachTest {
     void testCloseStateStoreOnClose(){}
 
 
-    private TaskAttempt createTestTaskAttempt(String key, String value, RetryableTopologyTestDriver<String, String> retryableTopologyTestDriver){
-        String topicName = retryableTopologyTestDriver.getInputTopicName();
+    private TaskAttempt createTestTaskAttempt(String key, String value, RetryableTestDriver<String, String> retryableTestDriver){
+        String topicName = retryableTestDriver.getInputTopicName();
         return new TaskAttempt(
                 topicName,
-                retryableTopologyTestDriver.getDefaultKeySerde().serializer().serialize(topicName, key),
-                retryableTopologyTestDriver.getDefaultValueSerde().serializer().serialize(topicName, value)
+                retryableTestDriver.getDefaultKeySerde().serializer().serialize(topicName, key),
+                retryableTestDriver.getDefaultValueSerde().serializer().serialize(topicName, value)
         );
     }
 }

@@ -33,8 +33,8 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
     @DisplayName("Should use a unique state store for each retryable node")
     void uniqueStateStorePerRetryableNode() {
         // TODO This should test for more than 1 retryable node
-        assertEquals(1, this.retryableDriver.getAllAttemptStateStores().size());
-        assertNotNull(this.retryableDriver.getAttemptStateStore());
+        assertEquals(1, this.retryableDriver.getAllAttemptStores().size());
+        assertNotNull(this.retryableDriver.getAttemptStore());
     }
 
     @Test

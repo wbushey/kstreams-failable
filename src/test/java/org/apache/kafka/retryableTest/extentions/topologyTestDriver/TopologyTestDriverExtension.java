@@ -1,28 +1,16 @@
 package org.apache.kafka.retryableTest.extentions.topologyTestDriver;
 
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.junit.jupiter.api.extension.*;
 
-import java.util.Properties;
 
-public class TopologyTestDriverExtension implements AfterEachCallback, BeforeEachCallback, ParameterResolver, TestInstancePostProcessor{
-    private final Properties topologyProps = new Properties();
-
-    @Override
-    public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return parameterContext.getParameter().getType().equals(Properties.class);
-    }
+public class TopologyTestDriverExtension
+        extends TopologyPropertiesExtension
+        implements AfterEachCallback, BeforeEachCallback, ParameterResolver, TestInstancePostProcessor {
 
     @Override
-    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        resetTopologyProps();
-        return topologyProps;
-    }
-
-    @Override
-    public void beforeEach(ExtensionContext context) throws Exception {
+    public void beforeEach(ExtensionContext context){
         createTopologyTestDriver(context);
     }
 
@@ -45,14 +33,6 @@ public class TopologyTestDriverExtension implements AfterEachCallback, BeforeEac
 
     private boolean isValidTestClass(Object testInstance){
         return WithTopologyTestDriver.class.isAssignableFrom(testInstance.getClass());
-    }
-
-    private void resetTopologyProps(){
-        topologyProps.clear();
-        topologyProps.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9091");
-        topologyProps.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        topologyProps.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-        topologyProps.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, "test");
     }
 
     private void closeDriver(ExtensionContext context){

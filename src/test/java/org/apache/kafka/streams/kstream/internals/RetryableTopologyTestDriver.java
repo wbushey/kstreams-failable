@@ -1,6 +1,7 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.retryableTest.TestTopology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.processor.StateStore;
@@ -12,7 +13,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
 
-public class RetryableTopologyTestDriver<K, V>{
+public class RetryableTopologyTestDriver<K, V> implements RetryableTestDriver<K, V> {
     private static final String RETRIES_STORE_SUFFIX = "-RETRIES_STORE";
     private final TestTopology<K, V> testTopology;
     private final TopologyTestDriver driver;
@@ -40,22 +41,23 @@ public class RetryableTopologyTestDriver<K, V>{
      * Get the state store used to store task attempt information in the test topology for the default Retryable node
      * @return KeyValueStateStore containing task attempt data
      */
-    public KeyValueStore<Long, TaskAttempt> getAttemptStateStore(){
-        return getAttemptStateStore(DEFAULT_TEST_NODE_NAME);
+    @Override
+    public KeyValueStore<Long, TaskAttempt> getAttemptStore(){
+        return getAttemptStore(DEFAULT_TEST_NODE_NAME);
     }
 
     /**
      * Get the state store used to store task attempt information in the test topology for the specified node
      * @return KeyValueStateStore containing task attempt data
      */
-    public KeyValueStore<Long, TaskAttempt> getAttemptStateStore(String nodeName){
+    public KeyValueStore<Long, TaskAttempt> getAttemptStore(String nodeName){
         return driver.getKeyValueStore(TestTopology.RETRYABLE_FOREACH_PREFIX.concat(nodeName.concat(RETRIES_STORE_SUFFIX)));
     }
 
     /**
      * @return A List of all state stores in the test topology used to store retry information
      */
-    public Map<String, StateStore> getAllAttemptStateStores(){
+    public Map<String, StateStore> getAllAttemptStores(){
         return driver.getAllStateStores().entrySet()
                 .stream()
                 .filter(map -> map.getKey().endsWith("-RETRIES_STORE"))
@@ -66,20 +68,23 @@ public class RetryableTopologyTestDriver<K, V>{
         return testTopology;
     }
 
+    public TopologyTestDriver getTopologyTestDriver(){
+        return this.driver;
+    }
+
+    @Override
     public Serde<K> getDefaultKeySerde() {
         return this.testTopology.getInputKeySerde();
     }
 
+    @Override
     public Serde<V> getDefaultValueSerde() {
         return this.testTopology.getInputValueSerde();
     }
 
+    @Override
     public String getInputTopicName(){
         return testTopology.getInputTopicName();
-    }
-
-    public TopologyTestDriver getTopologyTestDriver(){
-        return this.driver;
     }
 
 }
