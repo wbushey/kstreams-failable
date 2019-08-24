@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -44,23 +45,29 @@ class KStreamRetryableForeachTest {
     }
 
     @ParameterizedTest
-    @DisplayName("On punctuate, it executes retries scheduled to be attempted at or before the time of punctuation")
+    @DisplayName("On punctuate, it executes all retries scheduled to be attempted at or before the time of punctuation")
     @MethodSource("retryableProcessorDriverProvider")
     void testPerformRetry(RetryableProcessorTestDriver<String, String> processorTestDriver){
         long now = ZonedDateTime.now().toInstant().toEpochMilli();
         KeyValueStore<Long, TaskAttempt> attemptsStore = processorTestDriver.getAttemptStore();
         assertEquals(0, attemptsStore.approximateNumEntries());
 
-        attemptsStore.put(now + 500L, createTestTaskAttempt("inWindowKey1", "inWindowValue1", processorTestDriver));
-        attemptsStore.put(now + 1000L, createTestTaskAttempt("inWindowKey2", "inWindowValue2", processorTestDriver));
+        attemptsStore.put(now - Duration.ofDays(5).toMillis(), createTestTaskAttempt("veryOldKey", "veryOldValue", processorTestDriver));
+        attemptsStore.put(now - 1000L, createTestTaskAttempt("recentOldKey1", "recentOldValue1", processorTestDriver));
+        attemptsStore.put(now - 500L, createTestTaskAttempt("recentOldKey2", "recentOldValue2", processorTestDriver));
+        attemptsStore.put(now + 500L, createTestTaskAttempt("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1", processorTestDriver));
+        attemptsStore.put(now + 1000L, createTestTaskAttempt("scheduledInCurrentWindowKey2", "scheduleInCurrentWindowValue2", processorTestDriver));
         attemptsStore.put(now + 2000L, createTestTaskAttempt("afterWindowKey", "afterWindowValue", processorTestDriver));
 
         // Advance stream time by 1 second
         processorTestDriver.getRetryPunctuator().punctuate(now + 1000L);
 
-        assertEquals(2, processorTestDriver.getAction().getReceivedParameters().size());
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("inWindowKey1", "inWindowValue1")));
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("inWindowKey2", "inWindowValue2")));
+        assertEquals(5, processorTestDriver.getAction().getReceivedParameters().size());
+        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("veryOldKey", "veryOldValue")));
+        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("recentOldKey1", "recentOldValue1")));
+        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("recentOldKey2", "recentOldValue2")));
+        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1")));
+        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1")));
     }
 
 
@@ -110,10 +117,7 @@ class KStreamRetryableForeachTest {
         @DisplayName("It does not schedule a retry via the attempts store")
         void testSchedulingRetry(){
             processorTestDriver.pipeInput("key", "value");
-
-            List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = processorTestDriver.getScheduledTaskAttempts();
-
-            assertEquals(0, scheduledTaskAttempts.size());
+            assertEquals(0, processorTestDriver.getScheduledTaskAttempts().size());
         }
     }
 
@@ -130,24 +134,50 @@ class KStreamRetryableForeachTest {
         }
 
         @Test
-        @DisplayName("It schedules a retry via the retries state store if a RetryableException is thrown by the block")
+        @DisplayName("It schedules a retry via the attempts store if a RetryableException is thrown by the block on initial processing")
         void testSchedulingRetry(){
             processorTestDriver.pipeInput("key", "value");
 
             List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = processorTestDriver.getScheduledTaskAttempts();
 
             assertEquals(1, scheduledTaskAttempts.size());
-            Deserializer<String> keyDerializer = processorTestDriver.getDefaultKeySerde().deserializer();
-            Deserializer<String> valueDerializer = processorTestDriver.getDefaultValueSerde().deserializer();
+            assertAttemptForSameMessage("key", "value",
+                                        processorTestDriver.getInputTopicName(),
+                                        processorTestDriver.getScheduledTaskAttempts().get(0),
+                                        processorTestDriver.getDefaultKeySerde().deserializer(),
+                                        processorTestDriver.getDefaultValueSerde().deserializer());
 
-            assertEquals("key", keyDerializer.deserialize(processorTestDriver.getInputTopicName(),
-                                                                    scheduledTaskAttempts.get(0).value.getMessage().keyBytes));
-            assertEquals("value", valueDerializer.deserialize(processorTestDriver.getInputTopicName(),
-                                                                        scheduledTaskAttempts.get(0).value.getMessage().valueBytes));
         }
 
 
+        @Disabled
+        @Test
+        @DisplayName("It schedules another retry via the attempts store if an attempt is executed and throws a RetryableException")
+        void testRetryRetryOnRetryableException(){
+            long now = ZonedDateTime.now().toInstant().toEpochMilli();
+            KeyValueStore<Long, TaskAttempt> attemptsStore = processorTestDriver.getAttemptStore();
+            assertEquals(0, attemptsStore.approximateNumEntries());
 
+            // Add an attempt to the store
+            TaskAttempt testAttempt = createTestTaskAttempt("key", "value", processorTestDriver);
+            Integer previousAttemptsCount = testAttempt.getAttemptsCount();
+            attemptsStore.put(now, testAttempt);
+
+            // Execute retry
+            processorTestDriver.getRetryPunctuator().punctuate(now);
+
+            // Assert a new attempt has been scheduled
+            List<KeyValue<Long, TaskAttempt>> scheduledAttempts = processorTestDriver.getScheduledTaskAttempts();
+            assertEquals(1, scheduledAttempts.size());
+            assertTrue(scheduledAttempts.get(0).key > now);
+            assertTrue(scheduledAttempts.get(0).value.getAttemptsCount() > previousAttemptsCount);
+
+            assertAttemptForSameMessage("key", "value",
+                    processorTestDriver.getInputTopicName(),
+                    processorTestDriver.getScheduledTaskAttempts().get(0),
+                    processorTestDriver.getDefaultKeySerde().deserializer(),
+                    processorTestDriver.getDefaultValueSerde().deserializer());
+        }
     }
 
 
@@ -161,21 +191,6 @@ class KStreamRetryableForeachTest {
     @Test
     @DisplayName("It schedules retries via an exponential backoff based on number of retries already attempted")
     void testExponentialBackoffScheduling(){}
-
-    @Disabled
-    @Test
-    @DisplayName("It schedules another retry via the retries state store if a retry is executed and throws a RetryableException")
-    void testRetryRetryOnRetryableException(){}
-
-    @Disabled
-    @Test
-    @DisplayName("On punctuate, it executes scheduled retries recovered from application crash")
-    void testRecoveringScheduledRetries(){}
-
-    @Disabled
-    @Test
-    @DisplayName("On punctuate, it immediately executes scheduled retries recovered from application crash that should have already been executed")
-    void testImmediateExecutionOfRecoveredScheduledRetries(){}
 
     @Disabled
     @Test
@@ -197,6 +212,11 @@ class KStreamRetryableForeachTest {
     @DisplayName("It closes the scheduled retries state store when closed")
     void testCloseStateStoreOnClose(){}
 
+
+    private void assertAttemptForSameMessage(String key, String value, String topicName, KeyValue<Long, TaskAttempt> savedAttempt, Deserializer<String> keyDerializer, Deserializer<String> valueDerializer  ){
+        assertEquals(key, keyDerializer.deserialize(topicName, savedAttempt.value.getMessage().keyBytes));
+        assertEquals(value, valueDerializer.deserialize(topicName, savedAttempt.value.getMessage().valueBytes));
+    }
 
     private TaskAttempt createTestTaskAttempt(String key, String value, RetryableTestDriver<String, String> retryableTestDriver){
         String topicName = retryableTestDriver.getInputTopicName();

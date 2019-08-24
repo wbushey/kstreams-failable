@@ -48,6 +48,10 @@ public class TaskAttempt implements Serializable {
         return topicOfOrigin;
     }
 
+    public Integer getAttemptsCount(){
+        return attemptsCount;
+    }
+
     public ZonedDateTime getTimeOfNextAttempt() {
         return timeOfNextAttempt;
     }
