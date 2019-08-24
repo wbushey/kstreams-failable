@@ -1,27 +1,34 @@
 package org.apache.kafka.streams.kstream.internals;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.WithRetryableMockProcessorContext;
 import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
+import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockFailableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
+import org.apache.kafka.retryableTest.mockCallbacks.MockFailableExceptionForeach;
 import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeach;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.retryableTest.Pair;
+import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
 
@@ -101,7 +108,6 @@ class KStreamRetryableForeachTest {
         assertFalse(scheduledTaskAttempts.contains(existingAttempt));
     }
 
-
     /*
      * Test cases specific to behavior when the action succeed upon execution/retry
      */
@@ -138,9 +144,7 @@ class KStreamRetryableForeachTest {
         void testSchedulingRetry(){
             processorTestDriver.pipeInput("key", "value");
 
-            List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = processorTestDriver.getScheduledTaskAttempts();
-
-            assertEquals(1, scheduledTaskAttempts.size());
+            assertEquals(1, processorTestDriver.getScheduledTaskAttempts().size());
             assertAttemptForSameMessage("key", "value",
                                         processorTestDriver.getInputTopicName(),
                                         processorTestDriver.getScheduledTaskAttempts().get(0),
@@ -178,14 +182,67 @@ class KStreamRetryableForeachTest {
                     processorTestDriver.getDefaultKeySerde().deserializer(),
                     processorTestDriver.getDefaultValueSerde().deserializer());
         }
+
+
+        @Disabled
+        @Test
+        @DisplayName("It logs an INFO that an retryable error has occurred")
+        void testLogging(){}
+    }
+
+    /*
+     * Test cases specific to behavior when the action throws a RetryableException
+     */
+    @Nested
+    @DisplayName("When supplied with a lambda that throws a FailableException")
+    @ExtendWith(MockFailableExceptionForeachExtension.class)
+    class WhenFailableExceptions extends WithRetryableMockProcessorContext {
+        WhenFailableExceptions(MockFailableExceptionForeach<String, String> action, Properties topologyProps){
+            super(action, topologyProps);
+        }
+
+        @Test
+        @DisplayName("It does not schedule a retry via the attempts store when a FailableException is thrown by the block")
+        void testNoRetryScheduledOnFailableException(){
+            assertEquals(0, processorTestDriver.getScheduledTaskAttempts().size());
+            processorTestDriver.pipeInput("key", "value");
+            assertEquals(0, processorTestDriver.getScheduledTaskAttempts().size());
+        }
+
+
+        @Test
+        @DisplayName("It publishes a message to a dead letter topic when a FailableException is thrown by the block")
+        void testPublishingFailableException() throws IOException {
+            long now = ZonedDateTime.now().toInstant().toEpochMilli();
+            processorTestDriver.pipeInput("key", "value");
+            List<MockProcessorContext.CapturedForward> forwarded = processorTestDriver.getContext().forwarded(processorTestDriver.getDeadLetterNodeName());
+            assertEquals(1, forwarded.size());
+            String forwardedKey = (String) forwarded.get(0).keyValue().key;
+            String forwardedAttemptData = (String) forwarded.get(0).keyValue().value;
+
+            // Assert that the key is a combination of receiving topic and time the message was received
+            assertTrue(forwardedKey.startsWith(processorTestDriver.getInputTopicName()));
+            assertTrue(ZonedDateTime.parse(forwardedKey.split("\\.", 2)[1]).toInstant().toEpochMilli() >= now );
+
+            // Assert that the forwardedValue has useful data
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, Object> attemptMap = objectMapper.readValue(forwardedAttemptData, new TypeReference<Map<String,Object>>(){});
+            assertEquals(processorTestDriver.getInputTopicName(), attemptMap.get("topicOfOrigin"));
+            assertTrue(ZonedDateTime.parse((String)attemptMap.get("timeReceived")).toInstant().toEpochMilli() >= now );
+            assertEquals(1, Integer.parseInt(((String)attemptMap.get("attempts"))));
+            Map<String, Object> messageMap = objectMapper.readValue((String)attemptMap.get("message"), new TypeReference<Map<String,Object>>(){});
+            assertEquals("key", messageMap.get("key"));
+            assertEquals("value", messageMap.get("value"));
+        }
+
+
+        @Disabled
+        @Test
+        @DisplayName("It logs a WARN that an unretryable error has occurred")
+        void testLogging(){}
     }
 
 
-
-    @Disabled
-    @Test
-    @DisplayName("It deletes a retry from the retries state store once it is been executed and thrown a FailableException")
-    void testRetryDeletionOnFailableException(){}
 
     @Disabled
     @Test
@@ -194,24 +251,8 @@ class KStreamRetryableForeachTest {
 
     @Disabled
     @Test
-    @DisplayName("It publishes a message to a dead letter topic when a FailableException is thrown by the block")
-    void testPublishingFailableException(){}
-
-    @Disabled
-    @Test
-    @DisplayName("It does not schedule a retry via the retires state store when a FailableException is thrown by the block")
-    void testNoRetryScheduledOnFailableException(){}
-
-    @Disabled
-    @Test
     @DisplayName("It treats a job that has exhausted it's retries as having thrown a FailableException")
     void testRetryExhaustionException(){}
-
-    @Disabled
-    @Test
-    @DisplayName("It closes the scheduled retries state store when closed")
-    void testCloseStateStoreOnClose(){}
-
 
     private void assertAttemptForSameMessage(String key, String value, String topicName, KeyValue<Long, TaskAttempt> savedAttempt, Deserializer<String> keyDerializer, Deserializer<String> valueDerializer  ){
         assertEquals(key, keyDerializer.deserialize(topicName, savedAttempt.value.getMessage().keyBytes));
@@ -231,7 +272,8 @@ class KStreamRetryableForeachTest {
         final Serde<String> stringSerde = Serdes.String();
 
         return Stream.of(new MockSuccessfulForeach<String, String>(),
-                         new MockRetryableExceptionForeach<String, String>())
+                         new MockRetryableExceptionForeach<String, String>(),
+                         new MockFailableExceptionForeach<String, String>())
                 .map(mockCallback -> new RetryableProcessorTestDriver<>(mockCallback, createTopologyProps(), stringSerde, stringSerde));
     }
 }

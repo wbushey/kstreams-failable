@@ -1,5 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
@@ -8,6 +10,8 @@ import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 // TODO Add logging
 
@@ -16,9 +20,12 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
     private static final Long ATTEMPTS_PUNCTUATE_INTERVAL_MS = 500L;
     private final RetryableForeachAction<? super K, ? super V> action;
     private final String tasksStoreName;
+    private final String deadLetterNodeName;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    KStreamRetryableForeach(String tasksStoreName, final RetryableForeachAction<? super K, ? super V> action){
+    KStreamRetryableForeach(String tasksStoreName, String deadLetterNodeName, final RetryableForeachAction<? super K, ? super V> action){
         this.tasksStoreName = tasksStoreName;
+        this.deadLetterNodeName = deadLetterNodeName;
         this.action = action;
     }
 
@@ -27,7 +34,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
 
     private class RetryableKStreamRetryableForeachProcessor extends AbstractProcessor<K, V> {
         private ProcessorContext context;
-        private KeyValueStore<Long, TaskAttempt> tasksStore;
+        private KeyValueStore<Long, TaskAttempt> taskAttemptsStore;
         private Long timeOfLastQuery = 0L;
 
         @Override
@@ -35,10 +42,11 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
         public void init(ProcessorContext context){
             this.context = context;
 
-            this.tasksStore = (KeyValueStore) context.getStateStore(tasksStoreName);
+            this.taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
 
-            this.context.schedule(Duration.ofMillis(ATTEMPTS_PUNCTUATE_INTERVAL_MS), PunctuationType.WALL_CLOCK_TIME,
-                    (timestamp) -> { performAttemptsScheduledFor(timestamp); });
+            this.context.schedule(Duration.ofMillis(ATTEMPTS_PUNCTUATE_INTERVAL_MS),
+                    PunctuationType.WALL_CLOCK_TIME,
+                    this::performAttemptsScheduledFor);
         }
 
         @Override
@@ -48,9 +56,9 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
         }
 
         private void performAttemptsScheduledFor(Long punctuateTimestamp){
-            KeyValueIterator<Long, TaskAttempt> scheduledTasks = this.tasksStore.range(timeOfLastQuery, punctuateTimestamp);
+            KeyValueIterator<Long, TaskAttempt> scheduledTasks = this.taskAttemptsStore.range(timeOfLastQuery, punctuateTimestamp);
             scheduledTasks.forEachRemaining(scheduledTask -> {
-                this.tasksStore.delete(scheduledTask.key);
+                this.taskAttemptsStore.delete(scheduledTask.key);
                 performAttempt(scheduledTask.value);
             });
             timeOfLastQuery = punctuateTimestamp;
@@ -63,10 +71,36 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             try {
                 action.apply(key, value);
             } catch (RetryableKStream.RetryableException e) {
-                tasksStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
+                taskAttemptsStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
             } catch (RetryableKStream.FailableException e) {
+                context.forward(getDLTKey(attempt), jsonify(attempt), To.child(deadLetterNodeName));
+            }
+        }
+
+        private String getDLTKey(TaskAttempt attempt){
+           return attempt.getTopicOfOrigin().concat(".").concat(attempt.getTimeReceived().toString());
+        }
+
+        private String jsonify(TaskAttempt attempt){
+            String json = "";
+
+            Map<String, String> jsonMap = new HashMap<String, String>(){{
+                put("topicOfOrigin", attempt.getTopicOfOrigin());
+                put("timeReceived", attempt.getTimeReceived().toString());
+                put("attempts", attempt.getAttemptsCount().toString());
+            }};
+
+            try {
+                Map<String, Object> messageMap = new HashMap<String, Object>(){{
+                    put("key", getKeyFromBytes(attempt.getMessage().keyBytes));
+                    put("value", getValueFromBytes(attempt.getMessage().valueBytes));
+                }};
+                jsonMap.put("message", objectMapper.writeValueAsString(messageMap));
+                json = objectMapper.writeValueAsString(jsonMap);
+            } catch (JsonProcessingException e) {
                 e.printStackTrace();
             }
+            return json;
         }
 
         @SuppressWarnings("unchecked")

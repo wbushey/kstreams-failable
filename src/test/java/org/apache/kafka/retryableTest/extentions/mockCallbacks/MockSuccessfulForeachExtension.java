@@ -17,7 +17,7 @@ public class MockSuccessfulForeachExtension implements BeforeEachCallback, Param
     }
 
     @Override
-    public void beforeEach(ExtensionContext context) throws Exception {
+    public void beforeEach(ExtensionContext context) {
         mockCallback.getReceivedParameters().clear();
     }
 }

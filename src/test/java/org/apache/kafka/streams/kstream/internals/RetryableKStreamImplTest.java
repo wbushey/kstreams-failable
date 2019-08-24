@@ -3,15 +3,16 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
+import org.apache.kafka.streams.TopologyDescription;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Iterator;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockSuccessfulForeachExtension.class)
 class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
@@ -23,7 +24,7 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
 
     @Test
     @DisplayName("Should add the retryable node to the topology")
-    void addsRetryableNodeToTopology() {
+    void testAddsRetryableNodeToTopology() {
         // TODO This should test for more than 1 retryable node
         assertEquals(1, this.retryableDriver.getTestTopology().getAllRetryNodes().size());
         assertNotNull(this.retryableDriver.getTestTopology().getRetryNode());
@@ -31,10 +32,23 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
 
     @Test
     @DisplayName("Should use a unique state store for each retryable node")
-    void uniqueStateStorePerRetryableNode() {
+    void testUniqueStateStorePerRetryableNode() {
         // TODO This should test for more than 1 retryable node
         assertEquals(1, this.retryableDriver.getAllAttemptStores().size());
         assertNotNull(this.retryableDriver.getAttemptStore());
+    }
+
+    @Test
+    @DisplayName("It adds the dead letter publishing node as a successor of retryable nodes")
+    void testDeadLetterNode(){
+        // TODO This should test for more than 1 retryable node
+        boolean found = false;
+        Iterator<TopologyDescription.Node> nodeIterator = retryableDriver.getTestTopology().getRetryNode().successors().iterator();
+        while (!found && nodeIterator.hasNext()){
+            found = (nodeIterator.next().name().startsWith(DeadLetterPublisherNode.DEAD_LETTER_PUBLISHER_NODE_PREFIX));
+        }
+        assertTrue(found, "Dead Letter Producer Node not found as a successor for Retryable Node");
+
     }
 
     @Test

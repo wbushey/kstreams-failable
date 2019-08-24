@@ -71,13 +71,16 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
 
         StoreBuilder<KeyValueStore<Long, TaskAttempt>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
 
+        String deadLetterPublisherNodeName = builder.newProcessorName(DeadLetterPublisherNode.DEAD_LETTER_PUBLISHER_NODE_PREFIX);
+
         final ProcessorParameters<? super K, ? super V> processorParameters = new ProcessorParameters<>(
-                new KStreamRetryableForeach<>(retries_store_name, action),
+                new KStreamRetryableForeach<>(retries_store_name, deadLetterPublisherNodeName, action),
                 nodeName
         );
 
-        final StatefulProcessorNode<? super K, ? super V> retriableForeachNode = new StatefulProcessorNode<>(name, processorParameters, retries_store_builder);
-        builder.addGraphNode(this.streamsGraphNode, retriableForeachNode);
+        final StatefulProcessorNode<? super K, ? super V> retryableForeachNode = new StatefulProcessorNode<>(nodeName, processorParameters, retries_store_builder);
+        builder.addGraphNode(this.streamsGraphNode, retryableForeachNode);
+        builder.addGraphNode(retryableForeachNode, DeadLetterPublisherNode.get(deadLetterPublisherNodeName));
     }
 
     /*

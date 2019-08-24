@@ -18,8 +18,10 @@ import java.util.Properties;
 
 public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K, V> {
     private static final String DEFAULT_INPUT_TOPIC_NAME = "testTopic";
-    private static final String TEST_ATTEMPTS_STORE_NAME = "testAttemptsStore";
+    private static final String DEAFULT_TEST_ATTEMPTS_STORE_NAME = "testAttemptsStore";
+    private static final String DEFAULT_DEADLETTER_NODE_NAME = "testAttemptsStore";
     private final String inputTopicName;
+    private final String deadLetterNodeName;
     private final Serde<K> keySerde;
     private final Serde<V> valueSerde;
     private final MockCallback<K, V> action;
@@ -27,56 +29,58 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
     private final Processor<K, V> processor;
     private final KeyValueStore<Long, TaskAttempt> attemptsStore;
 
-    public RetryableProcessorTestDriver(MockCallback<K, V> mockCallback, Properties topologyProps, Serde<K> keySerde, Serde<V> valueSerde){
+    public RetryableProcessorTestDriver(MockCallback<K, V> mockCallback, Properties topologyProps, Serde<K> keySerde, Serde<V> valueSerde) {
         this.inputTopicName = DEFAULT_INPUT_TOPIC_NAME;
+        this.deadLetterNodeName = DEFAULT_DEADLETTER_NODE_NAME;
         this.action = mockCallback;
         this.keySerde = keySerde;
         this.valueSerde = valueSerde;
-        this.processor = new KStreamRetryableForeach<>(TEST_ATTEMPTS_STORE_NAME, action.getCallback()).get();
+        this.processor = new KStreamRetryableForeach<>(DEAFULT_TEST_ATTEMPTS_STORE_NAME, deadLetterNodeName, action.getCallback()).get();
 
         this.mockContext = new MockProcessorContext(topologyProps);
-        this.attemptsStore =
-                Stores.keyValueStoreBuilder(
-                        Stores.inMemoryKeyValueStore(TEST_ATTEMPTS_STORE_NAME),
-                        Serdes.Long(),
-                        new TaskAttemptSerde()
-                )
-                        .withLoggingDisabled() // Changelog is not supported by MockProcessorContext.
-                        .build();
+        this.attemptsStore = Stores.keyValueStoreBuilder(
+                Stores.inMemoryKeyValueStore(DEAFULT_TEST_ATTEMPTS_STORE_NAME), Serdes.Long(), new TaskAttemptSerde())
+                .withLoggingDisabled() // Changelog is not supported by MockProcessorContext.
+                .build();
+
         attemptsStore.init(mockContext, attemptsStore);
         mockContext.setTopic(inputTopicName);
         mockContext.register(attemptsStore, null);
         processor.init(mockContext);
     }
 
-    public MockCallback<K, V> getAction(){
+    public MockCallback<K, V> getAction() {
         return action;
     }
 
-    public Processor<K, V> getProcessor(){
+    public Processor<K, V> getProcessor() {
         return processor;
     }
 
-    public MockProcessorContext getContext(){
+    public MockProcessorContext getContext() {
         return mockContext;
     }
 
-    public Punctuator getRetryPunctuator(){
+    public Punctuator getRetryPunctuator() {
         return mockContext.scheduledPunctuators().get(0).getPunctuator();
     }
 
     @Override
-    public String getInputTopicName(){
+    public String getInputTopicName() {
         return inputTopicName;
     }
 
-    @Override
-    public Serde<K> getDefaultKeySerde(){
-       return keySerde;
+    public String getDeadLetterNodeName(){
+        return deadLetterNodeName;
     }
 
     @Override
-    public Serde<V> getDefaultValueSerde(){
+    public Serde<K> getDefaultKeySerde() {
+        return keySerde;
+    }
+
+    @Override
+    public Serde<V> getDefaultValueSerde() {
         return valueSerde;
     }
 
@@ -90,7 +94,7 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
         processor.process(key, value);
     }
 
-    public List<KeyValue<Long, TaskAttempt>> getScheduledTaskAttempts(){
+    public List<KeyValue<Long, TaskAttempt>> getScheduledTaskAttempts() {
         List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = new LinkedList<>();
         getAttemptStore().all().forEachRemaining(scheduledTaskAttempts::add);
         return scheduledTaskAttempts;

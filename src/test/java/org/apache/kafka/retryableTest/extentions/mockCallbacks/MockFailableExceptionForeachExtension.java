@@ -1,14 +1,14 @@
 package org.apache.kafka.retryableTest.extentions.mockCallbacks;
 
-import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeach;
+import org.apache.kafka.retryableTest.mockCallbacks.MockFailableExceptionForeach;
 import org.junit.jupiter.api.extension.*;
 
-public class MockRetryableExceptionForeachExtension implements BeforeEachCallback, ParameterResolver {
-    private MockRetryableExceptionForeach<String, String> mockCallback = new MockRetryableExceptionForeach<>();
+public class MockFailableExceptionForeachExtension implements BeforeEachCallback, ParameterResolver {
+    private MockFailableExceptionForeach<String, String> mockCallback = new MockFailableExceptionForeach<>();
 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return parameterContext.getParameter().getType().equals(MockRetryableExceptionForeach.class);
+        return parameterContext.getParameter().getType().equals(MockFailableExceptionForeach.class);
     }
 
     @Override
