@@ -34,7 +34,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
 
     private class RetryableKStreamRetryableForeachProcessor extends AbstractProcessor<K, V> {
         private ProcessorContext context;
-        private KeyValueStore<Long, TaskAttempt> taskAttemptsStore;
+        private TaskAttemptsDAO taskAttemptsDAO;
         private Long timeOfLastQuery = 0L;
 
         @Override
@@ -42,7 +42,9 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
         public void init(ProcessorContext context){
             this.context = context;
 
-            this.taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
+
+            final KeyValueStore<Long, TaskAttempt> taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
+            this.taskAttemptsDAO = new TaskAttemptsDAO(taskAttemptsStore);
 
             this.context.schedule(Duration.ofMillis(ATTEMPTS_PUNCTUATE_INTERVAL_MS),
                     PunctuationType.WALL_CLOCK_TIME,
@@ -56,12 +58,11 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
         }
 
         private void performAttemptsScheduledFor(Long punctuateTimestamp){
-            KeyValueIterator<Long, TaskAttempt> scheduledTasks = this.taskAttemptsStore.range(timeOfLastQuery, punctuateTimestamp);
+            KeyValueIterator<Long, TaskAttempt> scheduledTasks = taskAttemptsDAO.getAllTaskAttemptsScheduledBefore(punctuateTimestamp);
             scheduledTasks.forEachRemaining(scheduledTask -> {
-                this.taskAttemptsStore.delete(scheduledTask.key);
+                taskAttemptsDAO.unschedule(scheduledTask.value);
                 performAttempt(scheduledTask.value);
             });
-            timeOfLastQuery = punctuateTimestamp;
         }
 
         private void performAttempt(TaskAttempt attempt){
@@ -71,7 +72,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             try {
                 action.apply(key, value);
             } catch (RetryableKStream.RetryableException e) {
-                taskAttemptsStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
+                taskAttemptsDAO.schedule(attempt);
             } catch (RetryableKStream.FailableException e) {
                 context.forward(getDLTKey(attempt), jsonify(attempt), To.child(deadLetterNodeName));
             }

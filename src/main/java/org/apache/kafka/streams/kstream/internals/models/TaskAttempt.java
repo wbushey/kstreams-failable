@@ -64,6 +64,36 @@ public class TaskAttempt implements Serializable {
         return message;
     }
 
+    public String toString(){
+        return "TaskAttempt\n"
+            + this.getTimeReceived().toString() + "\n"
+            + this.getTopicOfOrigin().toString() + "\n"
+            + this.getAttemptsCount().toString() + "\n"
+            + this.getTimeOfNextAttempt().toString() + "\n"
+            + this.getMessage().toString() + "\n";
+    }
+
+    public boolean equals(Object o){
+        //TODO make this rely on hashCode
+        if (o == null)
+            return false;
+
+        if (o == this)
+            return true;
+
+
+        if (!(o instanceof TaskAttempt))
+            return false;
+
+        TaskAttempt other = (TaskAttempt)o;
+
+        return this.getTimeReceived().equals(other.getTimeReceived())
+            && this.getTopicOfOrigin().equals(other.getTopicOfOrigin())
+            && this.getAttemptsCount().equals(other.getAttemptsCount())
+            && this.getTimeOfNextAttempt().equals(other.getTimeOfNextAttempt())
+            && this.getMessage().equals(other.getMessage());
+    }
+
     public static class Message implements Serializable {
         public final byte[] keyBytes;
         public final byte[] valueBytes;
@@ -71,6 +101,30 @@ public class TaskAttempt implements Serializable {
         private Message(byte[] keyBytes, byte[] valueBytes) {
             this.keyBytes = keyBytes;
             this.valueBytes = valueBytes;
+        }
+
+        public String toString(){
+            return "TaskAttempt.Message\n"
+                + this.keyBytes + "\n"
+                + this.valueBytes + "\n";
+        }
+
+        public boolean equals(Object o){
+            // TODO make this use hashCode
+            if (o == null)
+                return false;
+
+            if (o == this)
+                return true;
+
+            if (!(o instanceof Message))
+                return false;
+
+            Message other = (Message)o;
+
+            // TODO Do an actual equality check on bytes
+            return true;
+
         }
     }
 
