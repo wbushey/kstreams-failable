@@ -6,14 +6,14 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 /**
- * A Task represents a received message that is enqueued to be retried. Tasks include the received message and metadata
+ * A TaskAttmpt represents a received message that is enqueued to be retried. TaskAttempts include the received message and metadata
  * about the past and current attempts to successfully process the message.
  *
  */
 public class TaskAttempt implements Serializable {
     // Base number of seconds to wait before reattempting a task. Total time to delay for a given attempt is
-    // BASE_RETRY_BACKOFF_SECONDS ^ (AttemptNumber -1) .
-    private static final Integer BASE_RETRY_BACKOFF_SECONDS = 2;
+    // BASE_RETRY_BACKOFF_SECONDS ^ attemptsCount.
+    private static final Integer BASE_RETRY_BACKOFF_SECONDS = 10;
 
     public static byte[] serialize(TaskAttempt taskAttempt) throws IOException {
         return toByteArray(taskAttempt);
@@ -37,21 +37,30 @@ public class TaskAttempt implements Serializable {
     public TaskAttempt(String topicOfOrigin, byte[] keyBytes, byte[] valueBytes) {
         this.topicOfOrigin = topicOfOrigin;
         this.message = new Message(keyBytes, valueBytes);
-        this.timeOfNextAttempt = getNewTimeOfNextAttempt();
+        this.timeOfNextAttempt = getNewTimeOfNextAttempt(this.attemptsCount);
     }
 
     public ZonedDateTime getTimeReceived() {
         return timeReceived;
     }
 
+    /**
+     * @return The name of the topic that the message associated with the task was received from.
+     */
     public String getTopicOfOrigin() {
         return topicOfOrigin;
     }
 
+    /**
+     * @return The number of times the task has been attempted.
+     */
     public Integer getAttemptsCount(){
         return attemptsCount;
     }
 
+    /**
+     * @return The time that the next attempt of the task should occur at.
+     */
     public ZonedDateTime getTimeOfNextAttempt() {
         return timeOfNextAttempt;
     }
@@ -62,6 +71,17 @@ public class TaskAttempt implements Serializable {
 
     public Message getMessage() {
         return message;
+    }
+
+    /**
+     * Prepares the TaskAttempt for its next attempt. This should be called after a failed attempt and before writing the TaskAttempt to an attempts store.
+     * 
+     * Increases attemptCount by 1 and sets timeOfNextAttempt to be a time in the future based on the previous number of attempts.
+     *
+     */
+    public void prepareForNextAttempt(){
+        this.attemptsCount++;
+        this.timeOfNextAttempt = getNewTimeOfNextAttempt(this.attemptsCount);
     }
 
     public String toString(){
@@ -132,8 +152,8 @@ public class TaskAttempt implements Serializable {
         return ZonedDateTime.now(ZoneOffset.UTC);
     }
 
-    private static ZonedDateTime getNewTimeOfNextAttempt(){
-        return now().plus(Duration.ofSeconds(BASE_RETRY_BACKOFF_SECONDS));
+    private static ZonedDateTime getNewTimeOfNextAttempt(Integer attempsCount){
+        return now().plus(Duration.ofSeconds((long)Math.pow(BASE_RETRY_BACKOFF_SECONDS, attempsCount)));
     }
 
     private static byte[] toByteArray(TaskAttempt taskAttempt) throws IOException {

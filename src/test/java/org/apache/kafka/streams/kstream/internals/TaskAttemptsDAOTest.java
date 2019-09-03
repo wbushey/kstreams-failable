@@ -19,7 +19,7 @@ import java.time.ZonedDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class TestAttemptsDAOTest {
+class TaskAttemptsDAOTest {
     private static final String DEAFULT_TEST_ATTEMPTS_STORE_NAME = "testAttemptsStore";
     private static final String DEAFULT_TEST_TOPIC_NAME = "testTopic";
     private KeyValueStore<Long, TaskAttempt> attemptsStore;
@@ -47,7 +47,7 @@ class TestAttemptsDAOTest {
         ZonedDateTime now = ZonedDateTime.now();
         ZonedDateTime timeToGetTaskAttempsAt = now.plus(Duration.ofMillis(100));
         assertEquals(0, attemptsStore.approximateNumEntries());
-        
+
         TaskAttempt veryDelayedAttempt = createTestTaskAttempt("key", "value");
         veryDelayedAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt.minus(Duration.ofDays(5)));
         subject.schedule(veryDelayedAttempt);
