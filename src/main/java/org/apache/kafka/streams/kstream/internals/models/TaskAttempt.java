@@ -11,6 +11,9 @@ import java.time.ZonedDateTime;
  *
  */
 public class TaskAttempt implements Serializable {
+    // TODO MAX_ATTEMPTS should be configurable
+    public static final Integer MAX_ATTEMPTS = 10;
+
     // Base number of seconds to wait before reattempting a task. Total time to delay for a given attempt is
     // BASE_RETRY_BACKOFF_SECONDS ^ attemptsCount.
     private static final Integer BASE_RETRY_BACKOFF_SECONDS = 10;
@@ -25,8 +28,6 @@ public class TaskAttempt implements Serializable {
 
 
 
-    // TODO maxAttempts should be configurable
-    private final Integer maxAttempts = 10;
     private final ZonedDateTime timeReceived = now();
     private final String topicOfOrigin;
     private Integer attemptsCount = 1;
@@ -52,7 +53,7 @@ public class TaskAttempt implements Serializable {
     }
 
     /**
-     * @return The number of times the task has been attempted.
+     * @return The number of times the task has already been attempted.
      */
     public Integer getAttemptsCount(){
         return attemptsCount;
@@ -82,6 +83,13 @@ public class TaskAttempt implements Serializable {
     public void prepareForNextAttempt(){
         this.attemptsCount++;
         this.timeOfNextAttempt = getNewTimeOfNextAttempt(this.attemptsCount);
+    }
+
+    /**
+     * @return True if all allowed attempts have occurred, False otherwise.
+     */
+    public boolean hasExhaustedRetries(){
+        return attemptsCount >= MAX_ATTEMPTS;
     }
 
     public String toString(){

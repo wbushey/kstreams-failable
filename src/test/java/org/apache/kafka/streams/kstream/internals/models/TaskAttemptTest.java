@@ -76,4 +76,17 @@ class TaskAttemptTest {
             assertTrue(expectedDelay <= currentDelay, "Expected " + currentDelay + " to be at least " + expectedDelay );
         }
     }
+
+    @Test
+    @DisplayName("hasExhaustedRetries returns true when the maximum number of attempts have occurred.")
+    void hasExhaustedRetriesTest(){
+        while(subject.getAttemptsCount() < TaskAttempt.MAX_ATTEMPTS){
+            assertFalse(subject.hasExhaustedRetries());
+            subject.prepareForNextAttempt();
+        }
+
+        // The maximum number of attempts have been attempted.
+        assertTrue(subject.getAttemptsCount() == TaskAttempt.MAX_ATTEMPTS);
+        assertTrue(subject.hasExhaustedRetries());
+    }
 }
