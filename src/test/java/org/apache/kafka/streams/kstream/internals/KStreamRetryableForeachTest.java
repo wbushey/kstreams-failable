@@ -91,19 +91,19 @@ class KStreamRetryableForeachTest {
     @DisplayName("It deletes an attempt from the attempts store once that attempt has been executed")
     @MethodSource("retryableProcessorDriverProvider")
     void testRetryDeletionOnSuccess(RetryableProcessorTestDriver<String, String> processorTestDriver){
-        long now = ZonedDateTime.now().toInstant().toEpochMilli();
         KeyValueStore<Long, TaskAttempt> attemptsStore = processorTestDriver.getAttemptStore();
         assertEquals(0, attemptsStore.approximateNumEntries());
 
         // Add an attempt to the store
         TaskAttempt testAttempt = createTestTaskAttempt("key", "value", processorTestDriver);
-        attemptsStore.put(now, testAttempt);
+        Long timeOfAttempt = testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli();
+        attemptsStore.put(timeOfAttempt, testAttempt);
         assertEquals(1, attemptsStore.approximateNumEntries());
 
 
         // Execute the attempt, then assert that the attempt is no longer in the store
         KeyValue<Long, TaskAttempt> existingAttempt = processorTestDriver.getScheduledTaskAttempts().get(0);
-        processorTestDriver.getRetryPunctuator().punctuate(now);
+        processorTestDriver.getRetryPunctuator().punctuate(timeOfAttempt);
         List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = processorTestDriver.getScheduledTaskAttempts();
         assertFalse(scheduledTaskAttempts.contains(existingAttempt));
     }
@@ -158,22 +158,22 @@ class KStreamRetryableForeachTest {
         @Test
         @DisplayName("It schedules another retry via the attempts store if an attempt is executed and throws a RetryableException")
         void testRetryRetryOnRetryableException(){
-            long now = ZonedDateTime.now().toInstant().toEpochMilli();
             KeyValueStore<Long, TaskAttempt> attemptsStore = processorTestDriver.getAttemptStore();
             assertEquals(0, attemptsStore.approximateNumEntries());
 
             // Add an attempt to the store
             TaskAttempt testAttempt = createTestTaskAttempt("key", "value", processorTestDriver);
+            Long timeOfAttempt = testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli();
             Integer previousAttemptsCount = testAttempt.getAttemptsCount();
-            attemptsStore.put(now, testAttempt);
+            attemptsStore.put(timeOfAttempt, testAttempt);
 
             // Execute retry
-            processorTestDriver.getRetryPunctuator().punctuate(now);
+            processorTestDriver.getRetryPunctuator().punctuate(timeOfAttempt);
 
             // Assert a new attempt has been scheduled
             List<KeyValue<Long, TaskAttempt>> scheduledAttempts = processorTestDriver.getScheduledTaskAttempts();
             assertEquals(1, scheduledAttempts.size());
-            assertTrue(scheduledAttempts.get(0).key > now);
+            assertTrue(scheduledAttempts.get(0).key > timeOfAttempt);
             assertTrue(scheduledAttempts.get(0).value.getAttemptsCount() > previousAttemptsCount);
 
             assertAttemptForSameMessage("key", "value",
@@ -186,7 +186,7 @@ class KStreamRetryableForeachTest {
 
         @Disabled
         @Test
-        @DisplayName("It logs an INFO that an retryable error has occurred")
+        @DisplayName("It logs an WARN that an retryable error has occurred")
         void testLogging(){}
     }
 
@@ -238,7 +238,7 @@ class KStreamRetryableForeachTest {
 
         @Disabled
         @Test
-        @DisplayName("It logs a WARN that an unretryable error has occurred")
+        @DisplayName("It logs a ERROR that an unretryable error has occurred")
         void testLogging(){}
     }
 
