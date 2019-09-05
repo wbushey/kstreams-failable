@@ -95,16 +95,17 @@ class TaskAttemptsDAOTest {
         assertEquals(attempt, attemptsStore.get(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli()));
     }
 
-    // TODO Use the correct syntax for expecting an exception
     @DisplayName("It throws a FailableException when attempting to schedule a task that has exhausted it's attempts.")
-    @Test(RetryableKStream.FailableException.class)
+    @Test()
     void schedulingAnExhaustedTaskAttemptThrowsAFailableException(){
         TaskAttempt attempt = createTestTaskAttempt("key", "value");
         while (!attempt.hasExhaustedRetries()){
             attempt.prepareForNextAttempt();
         }
 
-        subject.schedule(attempt);
+        assertThrows(RetryableKStream.RetriesExhaustedException.class, () -> {
+            subject.schedule(attempt);
+        });
     }
 
 

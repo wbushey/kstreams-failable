@@ -90,4 +90,13 @@ public interface RetryableKStream<K, V> extends KStream<K, V> {
         public FailableException(String message) { super(message); }
         public FailableException(String message, Throwable e) { super(message, e); }
     }
+
+    /**
+     * An exception representing too many attempts being made to successfully execute a task. Subclass of
+     * FailableException, thus, the action should not be retried again.
+     */
+    class RetriesExhaustedException extends FailableException {
+        public RetriesExhaustedException(String message) { super(message);}
+        public RetriesExhaustedException(String message, Throwable e) { super(message, e);}
+    }
 }
