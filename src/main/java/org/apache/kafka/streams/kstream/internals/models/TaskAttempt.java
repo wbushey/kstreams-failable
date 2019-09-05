@@ -1,5 +1,7 @@
 package org.apache.kafka.streams.kstream.internals.models;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 import java.io.*;
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -101,8 +103,19 @@ public class TaskAttempt implements Serializable {
             + this.getMessage().toString() + "\n";
     }
 
+    @Override
+    public int hashCode(){
+        return new HashCodeBuilder()
+                .append(attemptsCount)
+                .append(timeOfNextAttempt)
+                .append(timeReceived)
+                .append(topicOfOrigin)
+                .append(message)
+                .toHashCode();
+    }
+
+    @Override
     public boolean equals(Object o){
-        //TODO make this rely on hashCode
         if (o == null)
             return false;
 
@@ -115,11 +128,7 @@ public class TaskAttempt implements Serializable {
 
         TaskAttempt other = (TaskAttempt)o;
 
-        return this.getTimeReceived().equals(other.getTimeReceived())
-            && this.getTopicOfOrigin().equals(other.getTopicOfOrigin())
-            && this.getAttemptsCount().equals(other.getAttemptsCount())
-            && this.getTimeOfNextAttempt().equals(other.getTimeOfNextAttempt())
-            && this.getMessage().equals(other.getMessage());
+        return this.hashCode() == other.hashCode();
     }
 
     public static class Message implements Serializable {
@@ -137,8 +146,16 @@ public class TaskAttempt implements Serializable {
                 + this.valueBytes + "\n";
         }
 
+        @Override
+        public int hashCode(){
+            return new HashCodeBuilder()
+                    .append(keyBytes)
+                    .append(valueBytes)
+                    .toHashCode();
+        }
+
+        @Override
         public boolean equals(Object o){
-            // TODO make this use hashCode
             if (o == null)
                 return false;
 
@@ -150,9 +167,7 @@ public class TaskAttempt implements Serializable {
 
             Message other = (Message)o;
 
-            // TODO Do an actual equality check on bytes
-            return true;
-
+            return this.hashCode() == other.hashCode();
         }
     }
 
