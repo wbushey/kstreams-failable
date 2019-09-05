@@ -183,6 +183,30 @@ class KStreamRetryableForeachTest {
                     processorTestDriver.getDefaultValueSerde().deserializer());
         }
 
+        @Test
+        @DisplayName("It treats a job that has exhausted it's retries as having thrown a FailableException")
+        void testRetryExhaustionException() throws IOException {
+            KeyValueStore<Long, TaskAttempt> attemptsStore = processorTestDriver.getAttemptStore();
+            assertEquals(0, attemptsStore.approximateNumEntries());
+
+            // Create an attempt, advance it to it's final attempt, then add it to the store
+            TaskAttempt testAttempt = createTestTaskAttempt("key", "value", processorTestDriver);
+            while (!testAttempt.hasExhaustedRetries()){
+                testAttempt.prepareForNextAttempt();
+            }
+            Long timeOfAttempt = testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli();
+            attemptsStore.put(timeOfAttempt, testAttempt);
+
+            // Execute retry
+            processorTestDriver.getRetryPunctuator().punctuate(timeOfAttempt);
+
+            // No new attempt should be scheduled
+            assertEquals(0, processorTestDriver.getScheduledTaskAttempts().size());
+
+            // The Dead Letter Topic should receive a message
+            assertMessageForwardedToDLT(processorTestDriver, testAttempt.getTimeReceived().toInstant().toEpochMilli(), 11);
+        }
+
 
         @Disabled
         @Test
@@ -215,25 +239,10 @@ class KStreamRetryableForeachTest {
         void testPublishingFailableException() throws IOException {
             long now = ZonedDateTime.now().toInstant().toEpochMilli();
             processorTestDriver.pipeInput("key", "value");
-            List<MockProcessorContext.CapturedForward> forwarded = processorTestDriver.getContext().forwarded(processorTestDriver.getDeadLetterNodeName());
-            assertEquals(1, forwarded.size());
-            String forwardedKey = (String) forwarded.get(0).keyValue().key;
-            String forwardedAttemptData = (String) forwarded.get(0).keyValue().value;
-
-            // Assert that the key is a combination of receiving topic and time the message was received
-            assertTrue(forwardedKey.startsWith(processorTestDriver.getInputTopicName()));
-            assertTrue(ZonedDateTime.parse(forwardedKey.split("\\.", 2)[1]).toInstant().toEpochMilli() >= now );
-
-            // Assert that the forwardedValue has useful data
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Object> attemptMap = objectMapper.readValue(forwardedAttemptData, new TypeReference<Map<String,Object>>(){});
-            assertEquals(processorTestDriver.getInputTopicName(), attemptMap.get("topicOfOrigin"));
-            assertTrue(ZonedDateTime.parse((String)attemptMap.get("timeReceived")).toInstant().toEpochMilli() >= now );
-            assertEquals(1, Integer.parseInt(((String)attemptMap.get("attempts"))));
-            Map<String, Object> messageMap = objectMapper.readValue((String)attemptMap.get("message"), new TypeReference<Map<String,Object>>(){});
-            assertEquals("key", messageMap.get("key"));
-            assertEquals("value", messageMap.get("value"));
+            assertMessageForwardedToDLT(processorTestDriver, now, 1);
         }
+
+
 
 
         @Disabled
@@ -243,14 +252,33 @@ class KStreamRetryableForeachTest {
     }
 
 
-    @Disabled
-    @Test
-    @DisplayName("It treats a job that has exhausted it's retries as having thrown a FailableException")
-    void testRetryExhaustionException(){}
-
     private void assertAttemptForSameMessage(String key, String value, String topicName, KeyValue<Long, TaskAttempt> savedAttempt, Deserializer<String> keyDerializer, Deserializer<String> valueDerializer  ){
         assertEquals(key, keyDerializer.deserialize(topicName, savedAttempt.value.getMessage().keyBytes));
         assertEquals(value, valueDerializer.deserialize(topicName, savedAttempt.value.getMessage().valueBytes));
+    }
+
+    /*
+     * Assert that the processor sent a message to the Dead Letter Topic
+     */
+    private void assertMessageForwardedToDLT(RetryableProcessorTestDriver<String, String> processorTestDriver, Long timeOfReceipt, Integer attemptCount) throws IOException{
+        List<MockProcessorContext.CapturedForward> forwarded = processorTestDriver.getContext().forwarded(processorTestDriver.getDeadLetterNodeName());
+        assertEquals(1, forwarded.size());
+        String forwardedKey = (String) forwarded.get(0).keyValue().key;
+        String forwardedAttemptData = (String) forwarded.get(0).keyValue().value;
+
+        // Assert that the key is a combination of receiving topic and time the message was received
+        assertTrue(forwardedKey.startsWith(processorTestDriver.getInputTopicName()));
+        assertTrue(ZonedDateTime.parse(forwardedKey.split("\\.", 2)[1]).toInstant().toEpochMilli() >= timeOfReceipt);
+
+        // Assert that the forwardedValue has useful data
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> attemptMap = objectMapper.readValue(forwardedAttemptData, new TypeReference<Map<String,Object>>(){});
+        assertEquals(processorTestDriver.getInputTopicName(), attemptMap.get("topicOfOrigin"));
+        assertTrue(ZonedDateTime.parse((String)attemptMap.get("timeReceived")).toInstant().toEpochMilli() >= timeOfReceipt);
+        assertEquals(attemptCount, Integer.parseInt(((String)attemptMap.get("attempts"))));
+        Map<String, Object> messageMap = objectMapper.readValue((String)attemptMap.get("message"), new TypeReference<Map<String,Object>>(){});
+        assertEquals("key", messageMap.get("key"));
+        assertEquals("value", messageMap.get("value"));
     }
 
     private TaskAttempt createTestTaskAttempt(String key, String value, RetryableTestDriver<String, String> retryableTestDriver){
