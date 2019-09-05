@@ -243,12 +243,6 @@ class KStreamRetryableForeachTest {
     }
 
 
-
-    @Disabled
-    @Test
-    @DisplayName("It schedules retries via an exponential backoff based on number of retries already attempted")
-    void testExponentialBackoffScheduling(){}
-
     @Disabled
     @Test
     @DisplayName("It treats a job that has exhausted it's retries as having thrown a FailableException")

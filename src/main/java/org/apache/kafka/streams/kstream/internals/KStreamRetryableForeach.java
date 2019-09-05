@@ -70,10 +70,12 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             V value = getValueFromBytes(attempt.getMessage().valueBytes);
 
             try {
-                action.apply(key, value);
-            } catch (RetryableKStream.RetryableException e) {
-                attempt.prepareForNextAttempt();
-                taskAttemptsDAO.schedule(attempt);
+                try{
+                    action.apply(key, value);
+                } catch (RetryableKStream.RetryableException e) {
+                    attempt.prepareForNextAttempt();
+                    taskAttemptsDAO.schedule(attempt);
+                }
             } catch (RetryableKStream.FailableException e) {
                 context.forward(getDLTKey(attempt), jsonify(attempt), To.child(deadLetterNodeName));
             }

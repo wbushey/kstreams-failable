@@ -4,6 +4,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
+import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -92,6 +93,18 @@ class TaskAttemptsDAOTest {
         subject.schedule(attempt);
         assertEquals(1, attemptsStore.approximateNumEntries());
         assertEquals(attempt, attemptsStore.get(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli()));
+    }
+
+    // TODO Use the correct syntax for expecting an exception
+    @DisplayName("It throws a FailableException when attempting to schedule a task that has exhausted it's attempts.")
+    @Test(RetryableKStream.FailableException.class)
+    void schedulingAnExhaustedTaskAttemptThrowsAFailableException(){
+        TaskAttempt attempt = createTestTaskAttempt("key", "value");
+        while (!attempt.hasExhaustedRetries()){
+            attempt.prepareForNextAttempt();
+        }
+
+        subject.schedule(attempt);
     }
 
 

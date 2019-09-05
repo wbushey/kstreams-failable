@@ -77,7 +77,7 @@ public interface RetryableKStream<K, V> extends KStream<K, V> {
      * An exception representing an error that is likely to automatically heal. Thus, the action that led to this
      * exception should be retired.
      */
-    class RetryableException extends Exception {
+    class RetryableException extends RuntimeException {
         public RetryableException(String message) { super(message); }
         public RetryableException(String message, Throwable e) { super(message, e);}
     }
@@ -86,7 +86,7 @@ public interface RetryableKStream<K, V> extends KStream<K, V> {
      * A exception representing an error that is not likely to require manual action to address. Thus, the action
      * that led to this exception should *not* be retried.
      */
-    class FailableException extends Exception {
+    class FailableException extends RuntimeException {
         public FailableException(String message) { super(message); }
         public FailableException(String message, Throwable e) { super(message, e); }
     }
