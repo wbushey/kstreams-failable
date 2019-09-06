@@ -8,6 +8,8 @@ import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.processor.*;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -16,6 +18,7 @@ import java.util.Map;
 // TODO Add logging
 
 public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
+    private static final Logger LOG = LoggerFactory.getLogger(KStreamRetryableForeach.class);
 
     private static final Long ATTEMPTS_PUNCTUATE_INTERVAL_MS = 500L;
     private final RetryableForeachAction<? super K, ? super V> action;
@@ -73,10 +76,12 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
                 try{
                     action.apply(key, value);
                 } catch (RetryableKStream.RetryableException e) {
+                    LOG.info("Retrying");
                     attempt.prepareForNextAttempt();
                     taskAttemptsDAO.schedule(attempt);
                 }
             } catch (RetryableKStream.FailableException e) {
+                LOG.warn("Failing");
                 context.forward(getDLTKey(attempt), jsonify(attempt), To.child(deadLetterNodeName));
             }
         }

@@ -1,5 +1,10 @@
 package org.apache.kafka.streams.kstream.internals;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.AppenderBase;
+import ch.qos.logback.core.read.ListAppender;
+import ch.qos.logback.classic.Logger;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -22,14 +27,13 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.LoggingEvent;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static org.apache.kafka.retryableTest.TopologyFactory.createTopologyProps;
@@ -248,7 +252,18 @@ class KStreamRetryableForeachTest {
         @Disabled
         @Test
         @DisplayName("It logs a ERROR that an unretryable error has occurred")
-        void testLogging(){}
+        void testLogging(){
+            // Setup logger
+            Logger foreachLogger = (Logger) LoggerFactory.getLogger(KStreamRetryableForeach.class);
+            ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+            listAppender.start();
+            foreachLogger.addAppender(listAppender);
+
+            processorTestDriver.pipeInput("key", "value");
+
+            assertEquals(1, listAppender.list.size());
+            assertEquals(Level.ERROR, listAppender.list.get(0).getLevel());
+        }
     }
 
 
@@ -299,4 +314,3 @@ class KStreamRetryableForeachTest {
                 .map(mockCallback -> new RetryableProcessorTestDriver<>(mockCallback, createTopologyProps(), stringSerde, stringSerde));
     }
 }
-
