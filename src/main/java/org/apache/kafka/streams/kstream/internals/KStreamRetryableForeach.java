@@ -81,7 +81,11 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
                     taskAttemptsDAO.schedule(attempt);
                 }
             } catch (RetryableKStream.FailableException e) {
-                LOG.warn("Failing");
+                LOG.error(
+                        "A Non-Retryable Error has occurred while processing the following message\n"
+                    + "\ttopic:\t" + attempt.getTopicOfOrigin()
+                    + "\n\tkey:\t" + key.toString()
+                    + "\n\terror:\t" + e.toString());
                 context.forward(getDLTKey(attempt), jsonify(attempt), To.child(deadLetterNodeName));
             }
         }

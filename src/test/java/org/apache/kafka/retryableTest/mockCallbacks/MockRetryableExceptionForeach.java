@@ -9,9 +9,10 @@ import java.util.List;
 
 public class MockRetryableExceptionForeach<K, V> implements MockCallback<K, V> {
     private final List<Pair> receivedRecords = new LinkedList<>();
+    private final RetryableKStream.RetryableException exception = new RetryableKStream.RetryableException("Testing Happened");
     private final RetryableForeachAction<K, V> callback = (key, value) -> {
         receivedRecords.add(new Pair<>(key, value));
-        throw new RetryableKStream.RetryableException("Testing Happened");
+        throw exception;
     };
 
     @Override
@@ -19,4 +20,8 @@ public class MockRetryableExceptionForeach<K, V> implements MockCallback<K, V> {
 
     @Override
     public List<Pair> getReceivedParameters() { return receivedRecords; }
+
+
+    @Override
+    public Exception getException(){ return exception; }
 }

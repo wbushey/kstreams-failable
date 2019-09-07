@@ -247,22 +247,23 @@ class KStreamRetryableForeachTest {
         }
 
 
-
-
-        @Disabled
         @Test
         @DisplayName("It logs a ERROR that an unretryable error has occurred")
         void testLogging(){
             // Setup logger
-            Logger foreachLogger = (Logger) LoggerFactory.getLogger(KStreamRetryableForeach.class);
-            ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
-            listAppender.start();
-            foreachLogger.addAppender(listAppender);
+            ListAppender<ILoggingEvent> listAppender = getTestLogAppenender();
 
             processorTestDriver.pipeInput("key", "value");
 
             assertEquals(1, listAppender.list.size());
             assertEquals(Level.ERROR, listAppender.list.get(0).getLevel());
+            assertEquals(
+                    "A Non-Retryable Error has occurred while processing the following message\n"
+                    + "\ttopic:\t" + processorTestDriver.getInputTopicName()
+                    + "\n\tkey:\tkey"
+                    + "\n\terror:\t" + processorTestDriver.getAction().getException().toString(),
+                    listAppender.list.get(0).getMessage()
+                    );
         }
     }
 
@@ -312,5 +313,14 @@ class KStreamRetryableForeachTest {
                          new MockRetryableExceptionForeach<String, String>(),
                          new MockFailableExceptionForeach<String, String>())
                 .map(mockCallback -> new RetryableProcessorTestDriver<>(mockCallback, createTopologyProps(), stringSerde, stringSerde));
+    }
+
+    // TODO Move this is an extention with Before/After hooks
+    private static ListAppender<ILoggingEvent> getTestLogAppenender(){
+        Logger foreachLogger = (Logger) LoggerFactory.getLogger(KStreamRetryableForeach.class);
+        ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+        listAppender.start();
+        foreachLogger.addAppender(listAppender);
+        return listAppender;
     }
 }

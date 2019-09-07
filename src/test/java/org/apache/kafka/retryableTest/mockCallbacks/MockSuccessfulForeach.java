@@ -15,4 +15,8 @@ public class MockSuccessfulForeach<K, V> implements MockCallback<K, V> {
 
     @Override
     public List<Pair> getReceivedParameters() { return receivedRecords; }
+
+
+    @Override
+    public Exception getException(){ return null; }
 }

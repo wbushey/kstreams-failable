@@ -7,14 +7,18 @@ import java.util.List;
 
 public interface MockCallback<K, V> {
     /**
-     * Returns the callback to provide to a stream processor.
-     * @return
+     * @return The callback to provide to a stream processor.
      */
     public RetryableForeachAction<K, V> getCallback();
 
     /**
-     * Returns a list of parameters received by the callback.
-     * @return
+     * @return A list of parameters received by the callback.
      */
     public List<Pair> getReceivedParameters();
+
+
+    /**
+     * @return The exception that is thrown by this mock callback. Will return null if no exception is thrown.
+     */
+    public Exception getException();
 }
