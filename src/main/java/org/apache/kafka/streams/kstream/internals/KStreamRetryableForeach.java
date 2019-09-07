@@ -76,16 +76,12 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
                 try{
                     action.apply(key, value);
                 } catch (RetryableKStream.RetryableException e) {
-                    LOG.info("Retrying");
+                    logRetryableException(attempt, key, e);
                     attempt.prepareForNextAttempt();
                     taskAttemptsDAO.schedule(attempt);
                 }
             } catch (RetryableKStream.FailableException e) {
-                LOG.error(
-                        "A Non-Retryable Error has occurred while processing the following message\n"
-                    + "\ttopic:\t" + attempt.getTopicOfOrigin()
-                    + "\n\tkey:\t" + key.toString()
-                    + "\n\terror:\t" + e.toString());
+                logFailableException(attempt, key, e);
                 context.forward(getDLTKey(attempt), jsonify(attempt), To.child(deadLetterNodeName));
             }
         }
@@ -144,5 +140,25 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             return (V)valueSerde.deserializer().deserialize(topic, valueBytes);
         }
 
+        private void logRetryableException(TaskAttempt attempt, K key, RetryableKStream.RetryableException e){
+            LOG.warn(
+                "A Retryable Error has occurred while processing the following message"
+                + "\n\tAttempt Number:\t" + attempt.getAttemptsCount()
+                + commonExceptionLogLines(attempt, key, e)
+            );
+        }
+
+        private void logFailableException(TaskAttempt attempt, K key, RetryableKStream.FailableException e){
+            LOG.error(
+                "A Non-Retryable Error has occurred while processing the following message"
+                + commonExceptionLogLines(attempt, key, e)
+            );
+        }
+
+        private String commonExceptionLogLines(TaskAttempt attempt, K key, Exception e){
+            return  "\n\tTopic:\t\t" + attempt.getTopicOfOrigin()
+                    + "\n\tKey:\t\t" + key.toString()
+                    + "\n\tError:\t\t" + e.toString();
+        }
     }
 }

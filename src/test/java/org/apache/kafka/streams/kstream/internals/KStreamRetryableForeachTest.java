@@ -212,10 +212,24 @@ class KStreamRetryableForeachTest {
         }
 
 
-        @Disabled
         @Test
         @DisplayName("It logs an WARN that an retryable error has occurred")
-        void testLogging(){}
+        void testLogging(){
+            ListAppender<ILoggingEvent> listAppender = getTestLogAppenender();
+
+            processorTestDriver.pipeInput("key", "value");
+
+            assertEquals(1, listAppender.list.size());
+            assertEquals(Level.WARN, listAppender.list.get(0).getLevel());
+            assertEquals(
+                    "A Retryable Error has occurred while processing the following message"
+                    + "\n\tAttempt Number:\t1"
+                    + "\n\tTopic:\t\t" + processorTestDriver.getInputTopicName()
+                    + "\n\tKey:\t\tkey"
+                    + "\n\tError:\t\t" + processorTestDriver.getAction().getException().toString(),
+                    listAppender.list.get(0).getMessage()
+                    );
+        }
     }
 
     /*
@@ -250,7 +264,6 @@ class KStreamRetryableForeachTest {
         @Test
         @DisplayName("It logs a ERROR that an unretryable error has occurred")
         void testLogging(){
-            // Setup logger
             ListAppender<ILoggingEvent> listAppender = getTestLogAppenender();
 
             processorTestDriver.pipeInput("key", "value");
@@ -258,10 +271,10 @@ class KStreamRetryableForeachTest {
             assertEquals(1, listAppender.list.size());
             assertEquals(Level.ERROR, listAppender.list.get(0).getLevel());
             assertEquals(
-                    "A Non-Retryable Error has occurred while processing the following message\n"
-                    + "\ttopic:\t" + processorTestDriver.getInputTopicName()
-                    + "\n\tkey:\tkey"
-                    + "\n\terror:\t" + processorTestDriver.getAction().getException().toString(),
+                    "A Non-Retryable Error has occurred while processing the following message"
+                    + "\n\tTopic:\t\t" + processorTestDriver.getInputTopicName()
+                    + "\n\tKey:\t\tkey"
+                    + "\n\tError:\t\t" + processorTestDriver.getAction().getException().toString(),
                     listAppender.list.get(0).getMessage()
                     );
         }
