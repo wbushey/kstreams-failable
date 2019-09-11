@@ -15,10 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
@@ -47,6 +44,7 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
 
     @Test
     @DisplayName("It adds the dead letter publishing node as a successor of retryable nodes")
+    @SuppressWarnings("unchecked") // I can not figure out why an unchecked conversion is happening with the result of getAllRetryNodes
     void testDeadLetterNode(){
         // TODO figure out why an unckecked conversion is happening here
         Map<String, TopologyDescription.Node> mapOfNodes = retryableDriver.getTestTopology().getAllRetryNodes();
