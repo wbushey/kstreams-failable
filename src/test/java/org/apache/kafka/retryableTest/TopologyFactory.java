@@ -55,5 +55,4 @@ public class TopologyFactory<K, V> {
 
         return builder.build();
     }
-
 }

@@ -62,7 +62,7 @@ public class TestTopology <K, V> {
         return getAllTopologyNodes()
                 .stream()
                 .filter(node -> node.name().startsWith(RETRYABLE_FOREACH_PREFIX))
-                .collect(Collectors.toMap(node -> node.name(), node -> node));
+                .collect(Collectors.toMap(TopologyDescription.Node::name, node -> node));
     }
 
 

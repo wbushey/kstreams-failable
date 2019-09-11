@@ -18,7 +18,7 @@ import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_INPUT_TOP
 public abstract class WithRetryableTopologyTestDriver implements WithTopologyTestDriver {
     private final Properties topologyProps;
     protected final MockCallback<String, String> action;
-    protected final TestTopology<String, String> testTopology;
+    protected TestTopology<String, String> testTopology;
     protected RetryableTopologyTestDriver<String, String> retryableDriver;
 
     public WithRetryableTopologyTestDriver(MockCallback<String, String> mock, Properties topologyProps){
@@ -28,8 +28,8 @@ public abstract class WithRetryableTopologyTestDriver implements WithTopologyTes
 
         Topology topology = new TopologyFactory<String, String>().build(mock.getCallback(), DEFAULT_TEST_INPUT_TOPIC_NAME,
                                                                         stringSerde, stringSerde);
-        this.testTopology = new TestTopology<>(topology, DEFAULT_TEST_INPUT_TOPIC_NAME,
-                                                             stringSerde, stringSerde);
+        this.setTopology(topology, stringSerde);
+
     }
 
     @Override
@@ -40,5 +40,9 @@ public abstract class WithRetryableTopologyTestDriver implements WithTopologyTes
     @Override
     public void createTopologyTestDriver(){
         this.retryableDriver = new RetryableTopologyTestDriver<>(testTopology, topologyProps);
+    }
+
+    protected void setTopology(Topology topology, Serde<String> serde){
+        this.testTopology = new TestTopology<>(topology, DEFAULT_TEST_INPUT_TOPIC_NAME, serde, serde);
     }
 }

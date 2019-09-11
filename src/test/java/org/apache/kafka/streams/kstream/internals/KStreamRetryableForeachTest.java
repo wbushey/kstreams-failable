@@ -158,7 +158,6 @@ class KStreamRetryableForeachTest {
         }
 
 
-        @Disabled
         @Test
         @DisplayName("It schedules another retry via the attempts store if an attempt is executed and throws a RetryableException")
         void testRetryRetryOnRetryableException(){
