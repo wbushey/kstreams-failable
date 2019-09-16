@@ -46,21 +46,23 @@ public class TestTopology <K, V> {
     /**
      * @return Topology Node of the default Retryable node in the test topology
      */
-    public TopologyDescription.Node getRetryNode(){
-        return getRetryNode(DEFAULT_TEST_NODE_NAME);
+    public TopologyDescription.Node getRetryProcessor(){
+        return getRetryProcessor(DEFAULT_TEST_NODE_NAME);
     }
 
     /**
      * @param name Retryable node to get
      * @return Topology Node of the specified Retryable node in the test topology
      */
-    public TopologyDescription.Node getRetryNode(String name){
-        return getAllRetryNodes().get(RETRYABLE_FOREACH_PREFIX.concat(name));
+    public TopologyDescription.Node getRetryProcessor(String name){
+        return getAllRetryProcessors().get(RETRYABLE_FOREACH_PREFIX.concat(name));
     }
 
-    public Map<String, TopologyDescription.Node> getAllRetryNodes(){
+    public Map<String, TopologyDescription.Processor> getAllRetryProcessors(){
         return getAllTopologyNodes()
                 .stream()
+                .filter(node -> node instanceof TopologyDescription.Processor)
+                .map(node -> (TopologyDescription.Processor)node)
                 .filter(node -> node.name().startsWith(RETRYABLE_FOREACH_PREFIX))
                 .collect(Collectors.toMap(TopologyDescription.Node::name, node -> node));
     }

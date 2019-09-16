@@ -10,12 +10,14 @@ import org.apache.kafka.streams.TopologyDescription;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.RetryableKStream;
+import org.apache.kafka.streams.processor.StateStore;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
@@ -32,22 +34,28 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
     @Test
     @DisplayName("Should add all of the retryable node to the topology")
     void testAddsRetryableNodeToTopology() {
-        assertEquals(3, this.retryableDriver.getTestTopology().getAllRetryNodes().size());
+        assertEquals(3, this.retryableDriver.getTestTopology().getAllRetryProcessors().size());
     }
 
     @Test
     @DisplayName("Should use a unique state store for each retryable node")
+    @SuppressWarnings("unchecked") // I can not figure out why an unchecked conversion is happening with the result of getAllRetryProcessors
     void testUniqueStateStorePerRetryableNode() {
-        // TODO verify that each retry node is using it's own store
-        assertEquals(3, this.retryableDriver.getAllAttemptStores().size());
+        Collection<TopologyDescription.Processor> processors = retryableDriver.getTestTopology().getAllRetryProcessors().values();
+        Set<String> processorStores = processors.stream()
+                .flatMap(processor -> processor.stores().stream())
+                .collect(Collectors.toSet());
+        Set<String> topologyStores = this.retryableDriver.getAllAttemptStores().keySet();
+
+        assertEquals(3, topologyStores.size());
+        assertEquals(topologyStores, processorStores);
     }
 
     @Test
     @DisplayName("It adds the dead letter publishing node as a successor of retryable nodes")
-    @SuppressWarnings("unchecked") // I can not figure out why an unchecked conversion is happening with the result of getAllRetryNodes
+    @SuppressWarnings("unchecked") // I can not figure out why an unchecked conversion is happening with the result of getAllRetryProcessors
     void testDeadLetterNode(){
-        // TODO figure out why an unckecked conversion is happening here
-        Map<String, TopologyDescription.Node> mapOfNodes = retryableDriver.getTestTopology().getAllRetryNodes();
+        Map<String, TopologyDescription.Node> mapOfNodes = retryableDriver.getTestTopology().getAllRetryProcessors();
         mapOfNodes.values().forEach(this::assertHasDeadLetterProcessorSuccessor);
     }
 
@@ -67,12 +75,11 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
     }
 
     private void assertHasDeadLetterProcessorSuccessor(TopologyDescription.Node node){
-        boolean found = false;
-        final Iterator<TopologyDescription.Node> nodeIterator = node.successors().iterator();
-        while (!found && nodeIterator.hasNext()){
-            found = (nodeIterator.next().name().startsWith(DeadLetterPublisherNode.DEAD_LETTER_PUBLISHER_NODE_PREFIX));
-        }
-        assertTrue(found, "Dead Letter Producer Node not found as a successor for Retryable Node");
+        Set<TopologyDescription.Node> deadLetterPublisherNodes = node.successors().stream()
+                .filter(successor -> successor.name().startsWith(DeadLetterPublisherNode.DEAD_LETTER_PUBLISHER_NODE_PREFIX))
+                .collect(Collectors.toSet());
+
+        assertEquals(1, deadLetterPublisherNodes.size(), "Dead Letter Producer Node not found as a successor for Retryable Node");
     }
 
     private void setupMultiRetryableForeachNodeTestTopology(){
