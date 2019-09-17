@@ -1,6 +1,6 @@
 package org.apache.kafka.retryableTest.extentions.mockCallbacks;
 
-import org.apache.kafka.retryableTest.mockCallbacks.MockFailableExceptionForeach;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockFailableExceptionForeach;
 import org.junit.jupiter.api.extension.*;
 
 public class MockFailableExceptionForeachExtension implements BeforeEachCallback, ParameterResolver {

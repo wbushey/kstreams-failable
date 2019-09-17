@@ -2,6 +2,7 @@ package org.apache.kafka.retryableTest;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.retryableTest.mocks.mockSerdes.MockDefaultSerde;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -55,4 +56,15 @@ public class TopologyFactory<K, V> {
 
         return builder.build();
     }
+
+
+    /**
+     * @return Provided Properties with the default Key and Value Serdes set to be MockDefaultSerde
+     */
+    public static Properties insertMockDefaultSerde(Properties topologyProps){
+        topologyProps.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, MockDefaultSerde.class.getName());
+        topologyProps.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, MockDefaultSerde.class.getName());
+        return topologyProps;
+    }
+
 }

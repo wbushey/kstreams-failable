@@ -4,16 +4,14 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
-import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
+import org.apache.kafka.retryableTest.mocks.mockSerdes.MockDefaultSerde;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.TopologyDescription;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.RetryableKStream;
-import org.apache.kafka.streams.processor.StateStore;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.*;
@@ -21,6 +19,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
+import static org.apache.kafka.retryableTest.TopologyFactory.insertMockDefaultSerde;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockSuccessfulForeachExtension.class)
@@ -59,10 +58,9 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
         mapOfNodes.values().forEach(this::assertHasDeadLetterProcessorSuccessor);
     }
 
-    @Test
-    @Disabled
-    @DisplayName("Key and Value Serdes can be configured via Kafka Streams conventions")
-    void configurableSerdes(){
+    @Nested
+    @ExtendWith(MockSuccessfulForeachExtension.class)
+    class ConfigurableSerdeTests extends WithRetryableTopologyTestDriver {
         /* From AbstractStream:
          *
          * Any classes (KTable, KStream, etc) extending this class should follow the serde specification precedence ordering as:
@@ -71,7 +69,33 @@ class RetryableKStreamImplTest extends WithRetryableTopologyTestDriver {
          * 2) Serdes that can be inferred from the operator itself (e.g. groupBy().count(), where value serde can default to `LongSerde`).
          * 3) Serde inherited from parent operator if possible (note if the key / value types have been changed, then the corresponding serde cannot be inherited).
          * 4) Default serde specified in the config.
+         *
+         * KStream's foreach does not include a way to directly provide a Serde to the method. As such, #1 is not applicable. #2 is not applicable, since foreach is
+         * not an aggregation operation.
          */
+
+        ConfigurableSerdeTests(MockSuccessfulForeach<String, String> action, Properties topologyProps){
+            super(action, insertMockDefaultSerde(topologyProps));
+        }
+
+        @BeforeEach
+        void reset(){
+            MockDefaultSerde.methodCalls.resetCallCounts();
+        }
+
+
+        @Test
+        @DisplayName("It defaults to using the topology's default Serde")
+        void useDefaultSerdes(){
+            assertEquals(0, MockDefaultSerde.methodCalls.getCallCount("serializer"));
+            assertEquals(0, MockDefaultSerde.methodCalls.getCallCount("deserializer"));
+
+            retryableDriver.pipeInput("someKey", "someValue");
+
+            // Expect each method to be called once for the key serde and once for the value serde
+            assertEquals(2, MockDefaultSerde.methodCalls.getCallCount("serializer"));
+            assertEquals(2, MockDefaultSerde.methodCalls.getCallCount("deserializer"));
+        }
     }
 
     private void assertHasDeadLetterProcessorSuccessor(TopologyDescription.Node node){

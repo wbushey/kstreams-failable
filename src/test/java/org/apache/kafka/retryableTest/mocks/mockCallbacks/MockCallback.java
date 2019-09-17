@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTest.mockCallbacks;
+package org.apache.kafka.retryableTest.mocks.mockCallbacks;
 
 import org.apache.kafka.retryableTest.Pair;
 import org.apache.kafka.streams.kstream.internals.RetryableForeachAction;

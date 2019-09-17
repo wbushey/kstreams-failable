@@ -2,7 +2,6 @@ package org.apache.kafka.streams.kstream.internals;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.read.ListAppender;
 import ch.qos.logback.classic.Logger;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -15,9 +14,9 @@ import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockFailableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
-import org.apache.kafka.retryableTest.mockCallbacks.MockFailableExceptionForeach;
-import org.apache.kafka.retryableTest.mockCallbacks.MockSuccessfulForeach;
-import org.apache.kafka.retryableTest.mockCallbacks.MockRetryableExceptionForeach;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockFailableExceptionForeach;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockRetryableExceptionForeach;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.retryableTest.Pair;
@@ -28,7 +27,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
-import org.slf4j.event.LoggingEvent;
 
 import java.io.IOException;
 import java.time.Duration;

@@ -4,7 +4,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverExtension;
 import org.apache.kafka.retryableTest.extentions.topologyTestDriver.WithTopologyTestDriver;
-import org.apache.kafka.retryableTest.mockCallbacks.MockCallback;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.kstream.internals.RetryableTopologyTestDriver;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
@@ -24,6 +24,9 @@ public abstract class WithRetryableTopologyTestDriver implements WithTopologyTes
     public WithRetryableTopologyTestDriver(MockCallback<String, String> mock, Properties topologyProps){
         this.topologyProps = topologyProps;
         this.action = mock;
+
+        // This Serde differs from the default Serdes defined in the Topology Properties. It is only used when messages
+        // are initially piped into the test topology
         final Serde<String> stringSerde = Serdes.String();
 
         Topology topology = new TopologyFactory<String, String>().build(mock.getCallback(), DEFAULT_TEST_INPUT_TOPIC_NAME,

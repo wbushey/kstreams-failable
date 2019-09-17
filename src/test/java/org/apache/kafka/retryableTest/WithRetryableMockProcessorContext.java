@@ -3,7 +3,7 @@ package org.apache.kafka.retryableTest;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
-import org.apache.kafka.retryableTest.mockCallbacks.MockCallback;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.kstream.internals.RetryableProcessorTestDriver;
 import org.junit.jupiter.api.extension.ExtendWith;
 
