@@ -58,7 +58,6 @@ class TaskAttemptTest {
     @DisplayName("It advances timeOfNextAttempt using an exponential backoff based on attemptsCount when preparing for next attempt.")
     void prepareForNextAttemptAdvancesTimeOfNextAttemptExponentally(){
         final List<ZonedDateTime> timesOfNextAttempt = new LinkedList<>();
-        // TODO Does Java have X.times?
         for (int i = 1; i <= 10; i++){
             timesOfNextAttempt.add(subject.getTimeOfNextAttempt());
             subject.prepareForNextAttempt();
