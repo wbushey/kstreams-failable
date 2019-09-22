@@ -3,6 +3,7 @@ package org.apache.kafka.streams.kstream.internals;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.processor.*;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 // TODO Add logging
@@ -61,7 +63,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
         }
 
         private void performAttemptsScheduledFor(Long punctuateTimestamp){
-            KeyValueIterator<Long, TaskAttempt> scheduledTasks = taskAttemptsDAO.getAllTaskAttemptsScheduledBefore(punctuateTimestamp);
+            Iterator<KeyValue<Long, TaskAttempt>> scheduledTasks = taskAttemptsDAO.getAllTaskAttemptsScheduledBefore(punctuateTimestamp);
             scheduledTasks.forEachRemaining(scheduledTask -> {
                 taskAttemptsDAO.unschedule(scheduledTask.value);
                 performAttempt(scheduledTask.value);

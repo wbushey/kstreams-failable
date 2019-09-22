@@ -2,6 +2,7 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.kstream.RetryableKStream;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.LinkedList;
 import java.time.Duration;
@@ -75,14 +78,8 @@ class TaskAttemptsDAOTest {
 
         assertEquals(6, attemptsStore.approximateNumEntries());
 
-        KeyValueIterator<Long, TaskAttempt> retrievedAttemptsItr = subject.getAllTaskAttemptsScheduledBefore(timeToGetTaskAttempsAt.toInstant().toEpochMilli());
-        List<TaskAttempt> retrievedAttempts = new LinkedList<>();
-        retrievedAttemptsItr.forEachRemaining(pair -> retrievedAttempts.add(pair.value));
-        assertEquals(4, retrievedAttempts.size());
-        assertTrue(retrievedAttempts.contains(veryDelayedAttempt));
-        assertTrue(retrievedAttempts.contains(delayedAttempt));
-        assertTrue(retrievedAttempts.contains(withinSecondAttempt));
-        assertTrue(retrievedAttempts.contains(exactTimeAttempt));
+        assertTaskAttemptsScheduledBeforeTime(timeToGetTaskAttempsAt,
+                                              Arrays.asList(veryDelayedAttempt, delayedAttempt, withinSecondAttempt, exactTimeAttempt));
     }
 
     @DisplayName("It uses the TaskAttempt's TimeOfNextAttempt to schedule the task in the attempts store")
@@ -119,8 +116,31 @@ class TaskAttemptsDAOTest {
         assertEquals(0, attemptsStore.approximateNumEntries());
     }
 
-    //TODO Be able to schedule multiple tasks for execution at the same time
+    @DisplayName("It can schedule multiple task attempts at the same time")
+    @Test
+    void multipleAttemptsAtSameTime(){
+        ZonedDateTime aTime = ZonedDateTime.now();
+        TaskAttempt attempt1 = createTestTaskAttempt("key1", "value1");
+        TaskAttempt attempt2 = createTestTaskAttempt("key2", "value2");
+        TaskAttempt attempt3 = createTestTaskAttempt("key3", "value3");
+        attempt1.setTimeOfNextAttempt(aTime);
+        attempt2.setTimeOfNextAttempt(aTime);
+        attempt3.setTimeOfNextAttempt(aTime);
 
+        subject.schedule(attempt1);
+        subject.schedule(attempt2);
+        subject.schedule(attempt3);
+
+        assertTaskAttemptsScheduledBeforeTime(aTime, Arrays.asList(attempt1, attempt2, attempt3));
+    }
+
+    private void assertTaskAttemptsScheduledBeforeTime(ZonedDateTime time, List<TaskAttempt> expectedAttempts){
+        Iterator<KeyValue<Long, TaskAttempt>> retrievedAttemptsItr = subject.getAllTaskAttemptsScheduledBefore(time.toInstant().toEpochMilli());
+        List<TaskAttempt> retrievedAttempts = new LinkedList<>();
+        retrievedAttemptsItr.forEachRemaining(pair -> retrievedAttempts.add(pair.value));
+        assertEquals(expectedAttempts.size(), retrievedAttempts.size(), "Retrieved scheduled TaskAttempts count different than expected scheduled TaskAttempts");
+        expectedAttempts.forEach(attempt -> assertTrue(retrievedAttempts.contains(attempt)));
+    }
 
     private TaskAttempt createTestTaskAttempt(String key, String value){
         final String topicName = DEAFULT_TEST_TOPIC_NAME;
