@@ -20,16 +20,6 @@ public class TaskAttempt implements Serializable {
     // BASE_RETRY_BACKOFF_SECONDS ^ attemptsCount.
     private static final Integer BASE_RETRY_BACKOFF_SECONDS = 10;
 
-    public static byte[] serialize(TaskAttempt taskAttempt) throws IOException {
-        return toByteArray(taskAttempt);
-    }
-
-    public static TaskAttempt deserialize(byte[] data) throws IOException, ClassNotFoundException {
-        return fromByteArray(data);
-    }
-
-
-
     private final ZonedDateTime timeReceived = now();
     private final String topicOfOrigin;
     private Integer attemptsCount = 1;
@@ -178,24 +168,4 @@ public class TaskAttempt implements Serializable {
     private static ZonedDateTime getNewTimeOfNextAttempt(Integer attempsCount){
         return now().plus(Duration.ofSeconds((long)Math.pow(BASE_RETRY_BACKOFF_SECONDS, attempsCount)));
     }
-
-    private static byte[] toByteArray(TaskAttempt taskAttempt) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(bos);
-        oos.writeObject(taskAttempt);
-        byte[] result = bos.toByteArray();
-        oos.close();
-        bos.close();
-        return result;
-    }
-
-    private static TaskAttempt fromByteArray(byte[] data) throws IOException, ClassNotFoundException {
-        ByteArrayInputStream boi = new ByteArrayInputStream(data);
-        ObjectInputStream ois = new ObjectInputStream(boi);
-        TaskAttempt result = (TaskAttempt) ois.readObject();
-        ois.close();
-        boi.close();
-        return result;
-    }
-
 }

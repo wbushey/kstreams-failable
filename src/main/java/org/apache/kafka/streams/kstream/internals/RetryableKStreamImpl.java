@@ -7,7 +7,7 @@ import org.apache.kafka.streams.kstream.internals.graph.ProcessorParameters;
 import org.apache.kafka.streams.kstream.internals.graph.StatefulProcessorNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamsGraphNode;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
+import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;

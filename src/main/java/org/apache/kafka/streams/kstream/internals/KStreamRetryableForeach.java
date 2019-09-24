@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,7 +49,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             this.context = context;
 
 
-            final KeyValueStore<Long, TaskAttempt> taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
+            final KeyValueStore<Long, Collection<TaskAttempt>> taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
             this.taskAttemptsDAO = new TaskAttemptsDAO(taskAttemptsStore);
 
             this.context.schedule(Duration.ofMillis(ATTEMPTS_PUNCTUATE_INTERVAL_MS),

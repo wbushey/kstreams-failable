@@ -26,7 +26,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;

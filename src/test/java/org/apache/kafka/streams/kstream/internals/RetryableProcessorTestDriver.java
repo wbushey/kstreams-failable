@@ -5,7 +5,7 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
+import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.Punctuator;

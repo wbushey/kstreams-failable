@@ -4,20 +4,17 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.streams.kstream.internals.serdes.TaskAttemptSerde;
+import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptCollectionSerde;
+import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.processor.MockProcessorContext;
-import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.Stores;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.LinkedList;
+import java.util.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
@@ -26,14 +23,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class TaskAttemptsDAOTest {
     private static final String DEAFULT_TEST_ATTEMPTS_STORE_NAME = "testAttemptsStore";
     private static final String DEAFULT_TEST_TOPIC_NAME = "testTopic";
-    private KeyValueStore<Long, TaskAttempt> attemptsStore;
+    private KeyValueStore<Long, Collection<TaskAttempt>> attemptsStore;
     private TaskAttemptsDAO subject;
 
     @BeforeEach
     void setUp(){
         final MockProcessorContext mockContext = new MockProcessorContext();
         this.attemptsStore = Stores.keyValueStoreBuilder(
-                Stores.inMemoryKeyValueStore(DEAFULT_TEST_ATTEMPTS_STORE_NAME), Serdes.Long(), new TaskAttemptSerde())
+                Stores.inMemoryKeyValueStore(DEAFULT_TEST_ATTEMPTS_STORE_NAME), Serdes.Long(), new TaskAttemptCollectionSerde())
                 .withLoggingDisabled() // Changelog is not supported by MockProcessorContext.
                 .build();
 
@@ -110,7 +107,7 @@ class TaskAttemptsDAOTest {
     @Test
     void unscheduleTaskAttemptFromAttemptStore(){
         TaskAttempt attempt = createTestTaskAttempt("key", "value");
-        attemptsStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
+        attemptsStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), Arrays.asList(attempt));
         assertEquals(1, attemptsStore.approximateNumEntries());
         subject.unschedule(attempt);
         assertEquals(0, attemptsStore.approximateNumEntries());
