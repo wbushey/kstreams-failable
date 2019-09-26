@@ -1,16 +1,14 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptSerde;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.Stores;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -27,7 +25,8 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
     private final MockCallback<K, V> action;
     private final MockProcessorContext mockContext;
     private final Processor<K, V> processor;
-    private final KeyValueStore<Long, TaskAttempt> attemptsStore;
+    private final KeyValueStore<Long, TaskAttemptsCollection> attemptsStore;
+    private final TaskAttemptsDAO dao;
 
     public RetryableProcessorTestDriver(MockCallback<K, V> mockCallback, Properties topologyProps, Serde<K> keySerde, Serde<V> valueSerde) {
         this.inputTopicName = DEFAULT_INPUT_TOPIC_NAME;
@@ -38,10 +37,10 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
         this.processor = new KStreamRetryableForeach<>(DEAFULT_TEST_ATTEMPTS_STORE_NAME, deadLetterNodeName, action.getCallback()).get();
 
         this.mockContext = new MockProcessorContext(topologyProps);
-        this.attemptsStore = Stores.keyValueStoreBuilder(
-                Stores.inMemoryKeyValueStore(DEAFULT_TEST_ATTEMPTS_STORE_NAME), Serdes.Long(), new TaskAttemptSerde())
+        this.attemptsStore = StoreBuilders.getTaskAttemptsStoreBuilder(DEAFULT_TEST_ATTEMPTS_STORE_NAME, StoreBuilders.BackingStore.IN_MEMORY)
                 .withLoggingDisabled() // Changelog is not supported by MockProcessorContext.
                 .build();
+        this.dao = new TaskAttemptsDAO(attemptsStore);
 
         attemptsStore.init(mockContext, attemptsStore);
         mockContext.setTopic(inputTopicName);
@@ -85,8 +84,13 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
     }
 
     @Override
-    public KeyValueStore<Long, TaskAttempt> getAttemptStore() {
+    public KeyValueStore<Long, TaskAttemptsCollection> getAttemptStore() {
         return attemptsStore;
+    }
+
+    @Override
+    public TaskAttemptsDAO getTaskAttemptsDAO(){
+        return dao;
     }
 
     @Override
@@ -96,8 +100,11 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
 
     public List<KeyValue<Long, TaskAttempt>> getScheduledTaskAttempts() {
         List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = new LinkedList<>();
-        getAttemptStore().all().forEachRemaining(scheduledTaskAttempts::add);
+        dao.getAllTaskAttempts().forEachRemaining(scheduledTaskAttempts::add);
         return scheduledTaskAttempts;
     }
 
+    public Integer getCountOfScheduledTaskAttempts(){
+        return getScheduledTaskAttempts().size();
+    }
 }

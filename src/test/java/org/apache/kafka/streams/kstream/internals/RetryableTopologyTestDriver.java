@@ -4,6 +4,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.retryableTest.TestTopology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
@@ -42,7 +43,7 @@ public class RetryableTopologyTestDriver<K, V> implements RetryableTestDriver<K,
      * @return KeyValueStateStore containing task attempt data
      */
     @Override
-    public KeyValueStore<Long, TaskAttempt> getAttemptStore(){
+    public KeyValueStore<Long, TaskAttemptsCollection> getAttemptStore(){
         return getAttemptStore(DEFAULT_TEST_NODE_NAME);
     }
 
@@ -50,8 +51,16 @@ public class RetryableTopologyTestDriver<K, V> implements RetryableTestDriver<K,
      * Get the state store used to store task attempt information in the test topology for the specified node
      * @return KeyValueStateStore containing task attempt data
      */
-    public KeyValueStore<Long, TaskAttempt> getAttemptStore(String nodeName){
+    public KeyValueStore<Long, TaskAttemptsCollection> getAttemptStore(String nodeName){
         return driver.getKeyValueStore(TestTopology.RETRYABLE_FOREACH_PREFIX.concat(nodeName.concat(RETRIES_STORE_SUFFIX)));
+    }
+
+    /**
+     * @return A TaskAttemptsDAO associated with the state store used for the default Retryable node
+     */
+    @Override
+    public TaskAttemptsDAO getTaskAttemptsDAO(){
+        return new TaskAttemptsDAO(getAttemptStore());
     }
 
     /**

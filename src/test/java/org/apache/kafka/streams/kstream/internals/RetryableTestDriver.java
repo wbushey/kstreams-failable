@@ -1,7 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 public interface RetryableTestDriver<K, V> {
@@ -25,7 +25,12 @@ public interface RetryableTestDriver<K, V> {
     /**
      * @return StateStore for task attempts
      */
-    KeyValueStore<Long, TaskAttempt> getAttemptStore();
+    KeyValueStore<Long, TaskAttemptsCollection> getAttemptStore();
+
+    /**
+     * @return TaskAttemptsDAO for the Driver's StateStore
+     */
+    TaskAttemptsDAO getTaskAttemptsDAO();
 
     /**
      * Send a message to the input topic

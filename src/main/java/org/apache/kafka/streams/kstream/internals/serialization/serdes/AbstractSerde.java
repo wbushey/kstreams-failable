@@ -5,18 +5,19 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Map;
 
 import static org.apache.kafka.streams.kstream.internals.serialization.Serialization.fromByteArray;
 import static org.apache.kafka.streams.kstream.internals.serialization.Serialization.toByteArray;
 
-class AbstractSerde<T> implements Serde<T> {
-    private final InnerSerializer serializer;
-    private final InnerDeserializer deserializer;
+class AbstractSerde<T extends Serializable> implements Serde<T> {
+    private final InnerSerializer<T> serializer;
+    private final InnerDeserializer<T> deserializer;
 
     AbstractSerde(Class<T> type){
-         serializer = new InnerSerializer();
-         deserializer  = new InnerDeserializer(type);
+         serializer = new InnerSerializer<>();
+         deserializer  = new InnerDeserializer<>(type);
     }
 
     @Override
@@ -33,15 +34,15 @@ class AbstractSerde<T> implements Serde<T> {
 
     @Override
     public Serializer<T> serializer() {
-        return null;
+        return serializer;
     }
 
     @Override
     public Deserializer<T> deserializer() {
-        return null;
+        return deserializer;
     }
 
-    private static class InnerSerializer<T> implements Serializer<T>{
+    private static class InnerSerializer<T extends Serializable> implements Serializer<T>{
         @Override
         public byte[] serialize(String topic, T object) {
             byte[] result = null;
@@ -54,7 +55,7 @@ class AbstractSerde<T> implements Serde<T> {
         }
     }
 
-    private static class InnerDeserializer<T> implements  Deserializer<T>{
+    private static class InnerDeserializer<T extends Serializable> implements  Deserializer<T>{
         private final Class<T> type;
 
         InnerDeserializer(Class<T> type){

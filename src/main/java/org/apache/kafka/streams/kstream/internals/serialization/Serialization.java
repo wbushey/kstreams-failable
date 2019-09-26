@@ -11,7 +11,7 @@ public class Serialization {
      * @return          Byte array serialization of the provided object.
      * @throws IOException
      */
-    public static <T> byte[] toByteArray(T object) throws IOException {
+    public static <T extends Serializable> byte[] toByteArray(T object) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos);
         oos.writeObject(object);
@@ -31,6 +31,8 @@ public class Serialization {
      * @throws ClassNotFoundException
      * @throws ClassCastException
      */
+    // Suppressing due to cast in return. Type is checked before cast.
+    @SuppressWarnings("unchecked")
     public static <T> T fromByteArray(byte[] data, Class<T> t) throws IOException, ClassNotFoundException, ClassCastException{
         ByteArrayInputStream boi = new ByteArrayInputStream(data);
         ObjectInputStream ois = new ObjectInputStream(boi);

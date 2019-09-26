@@ -7,6 +7,7 @@ import org.apache.kafka.streams.kstream.internals.graph.ProcessorParameters;
 import org.apache.kafka.streams.kstream.internals.graph.StatefulProcessorNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamsGraphNode;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -69,7 +70,7 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
         final String retries_store_name = nodeName.concat(RETRIES_STORE_SUFFIX);
 
 
-        StoreBuilder<KeyValueStore<Long, TaskAttempt>> retries_store_builder = getRetriesStoreBuilder(retries_store_name);
+        StoreBuilder<KeyValueStore<Long, TaskAttemptsCollection>> retries_store_builder = StoreBuilders.getTaskAttemptsStoreBuilder(retries_store_name, StoreBuilders.BackingStore.PERSISTENT);
 
         String deadLetterPublisherNodeName = builder.newProcessorName(DeadLetterPublisherNode.DEAD_LETTER_PUBLISHER_NODE_PREFIX);
 
@@ -83,13 +84,4 @@ public class RetryableKStreamImpl<K, V> extends KStreamImpl<K, V> implements Ret
         builder.addGraphNode(retryableForeachNode, DeadLetterPublisherNode.get(deadLetterPublisherNodeName));
     }
 
-    /*
-     * Common setup for retries state stores
-     */
-    private StoreBuilder<KeyValueStore<Long, TaskAttempt>> getRetriesStoreBuilder(String retries_store_name){
-        // TODO Fix types of this key value store
-        return Stores.keyValueStoreBuilder(
-                Stores.persistentKeyValueStore(retries_store_name),
-                Serdes.Long(), new TaskAttemptSerde());
-    }
 }

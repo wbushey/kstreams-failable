@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.*;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -49,7 +50,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
             this.context = context;
 
 
-            final KeyValueStore<Long, Collection<TaskAttempt>> taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
+            final KeyValueStore<Long, TaskAttemptsCollection> taskAttemptsStore = (KeyValueStore) context.getStateStore(tasksStoreName);
             this.taskAttemptsDAO = new TaskAttemptsDAO(taskAttemptsStore);
 
             this.context.schedule(Duration.ofMillis(ATTEMPTS_PUNCTUATE_INTERVAL_MS),
