@@ -71,24 +71,24 @@ class KStreamRetryableForeachTest {
         dao.schedule(createTestTaskAttempt("scheduledInCurrentWindowKey2", "scheduleInCurrentWindowValue2", now.plusSeconds(1), processorTestDriver));
         dao.schedule(createTestTaskAttempt("afterWindowKey", "afterWindowValue", now.plusSeconds(2), processorTestDriver));
 
+
         // Advance stream time by 1 second
         processorTestDriver.getRetryPunctuator().punctuate(now.toInstant().toEpochMilli() + 1000L);
 
-        assertEquals(5, processorTestDriver.getCountOfScheduledTaskAttempts());
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("veryOldKey", "veryOldValue")));
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("recentOldKey1", "recentOldValue1")));
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("recentOldKey2", "recentOldValue2")));
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1")));
-        assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(new Pair<>("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1")));
+        assertActionReceivedCalls(processorTestDriver, Arrays.asList(
+                new Pair<>("veryOldKey", "veryOldValue"),
+                new Pair<>("recentOldKey1", "recentOldValue1"),
+                new Pair<>("recentOldKey2", "recentOldValue2"),
+                new Pair<>("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1"),
+                new Pair<>("scheduledInCurrentWindowKey1", "scheduleInCurrentWindowValue1")
+                ));
     }
-
 
     @ParameterizedTest
     @DisplayName("It punctuates every half a second")
     @MethodSource("retryableProcessorDriverProvider")
     void testPunctuateSchedule(RetryableProcessorTestDriver<String, String> processorTestDriver){
         assertEquals(500L, processorTestDriver.getContext().scheduledPunctuators().get(0).getIntervalMs());
-
     }
 
 
@@ -103,7 +103,6 @@ class KStreamRetryableForeachTest {
         TaskAttempt testAttempt = createTestTaskAttempt("key", "value", ZonedDateTime.now(), processorTestDriver);
         taskAttemptsDAO.schedule(testAttempt);
         assertEquals(1, processorTestDriver.getCountOfScheduledTaskAttempts());
-
 
         // Execute the attempt, then assert that the attempt is no longer in the store
         KeyValue<Long, TaskAttempt> existingAttempt = processorTestDriver.getScheduledTaskAttempts().get(0);
@@ -306,6 +305,19 @@ class KStreamRetryableForeachTest {
         assertEquals("key", messageMap.get("key"));
         assertEquals("value", messageMap.get("value"));
     }
+
+
+    /*
+     * Assert that the mock action received calls with the specified arguments. This is not order dependent.
+     */
+    private void assertActionReceivedCalls(RetryableProcessorTestDriver<String, String> processorTestDriver, List<Pair<String, String>> parameters){
+        assertEquals(parameters.size(), processorTestDriver.getAction().getReceivedParameters().size());
+        parameters.forEach(parameter -> {
+            assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(parameter));
+        });
+    }
+
+
 
     private TaskAttempt createTestTaskAttempt(String key, String value, ZonedDateTime timeOfNextAttempt, RetryableTestDriver<String, String> retryableTestDriver){
         String topicName = retryableTestDriver.getInputTopicName();

@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-// TODO Add logging
-
 public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
     private static final Logger LOG = LoggerFactory.getLogger(KStreamRetryableForeach.class);
 
@@ -42,7 +40,6 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
     private class RetryableKStreamRetryableForeachProcessor extends AbstractProcessor<K, V> {
         private ProcessorContext context;
         private TaskAttemptsDAO taskAttemptsDAO;
-        private Long timeOfLastQuery = 0L;
 
         @Override
         @SuppressWarnings("unchecked")
