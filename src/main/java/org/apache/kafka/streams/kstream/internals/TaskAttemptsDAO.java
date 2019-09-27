@@ -32,9 +32,15 @@ public class TaskAttemptsDAO {
         if (attempt.hasExhaustedRetries()){
             throw new RetryableKStream.RetriesExhaustedException("Retry attempts have been exhausted.");
         }
+        insert(attempt);
+    }
+
+    private void insert(TaskAttempt attempt){
         Long scheduledTime = attempt.getTimeOfNextAttempt().toInstant().toEpochMilli();
         this.attemptsStore.putIfAbsent(scheduledTime, new TaskAttemptsCollection());
-        this.attemptsStore.get(scheduledTime).add(attempt);
+        TaskAttemptsCollection collection = this.attemptsStore.get(scheduledTime);
+        collection.add(attempt);
+        this.attemptsStore.put(scheduledTime, collection);
     }
 
     public void unschedule(TaskAttempt attempt){

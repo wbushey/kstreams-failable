@@ -20,6 +20,7 @@ import java.time.ZonedDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+//TODO create getScheduleJobsCount helper, use that here instead of approximate count
 class TaskAttemptsDAOTest {
     private static final String DEAFULT_TEST_ATTEMPTS_STORE_NAME = "testAttemptsStore";
     private static final String DEAFULT_TEST_TOPIC_NAME = "testTopic";
@@ -83,7 +84,8 @@ class TaskAttemptsDAOTest {
         TaskAttempt attempt = createTestTaskAttempt("key", "value");
         subject.schedule(attempt);
         assertEquals(1, attemptsStore.approximateNumEntries());
-        assertEquals(attempt, attemptsStore.get(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli()));
+
+        assertEquals(attempt, attemptsStore.get(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli()).toArray()[0]);
     }
 
     @DisplayName("It throws a FailableException when attempting to schedule a task that has exhausted it's attempts.")

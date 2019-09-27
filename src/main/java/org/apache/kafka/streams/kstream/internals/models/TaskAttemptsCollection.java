@@ -54,7 +54,8 @@ public class TaskAttemptsCollection implements Collection<TaskAttempt>, Serializ
 
     @Override
     public boolean add(TaskAttempt taskAttempt) {
-        return collection.add(taskAttempt);
+        Boolean result = collection.add(taskAttempt);
+        return result;
     }
 
     @Override

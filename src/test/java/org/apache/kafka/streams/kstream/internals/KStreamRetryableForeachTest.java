@@ -189,6 +189,7 @@ class KStreamRetryableForeachTest {
         @Test
         @DisplayName("It treats a job that has exhausted it's retries as having thrown a FailableException")
         void testRetryExhaustionException() throws IOException {
+            // Use the KeyValueStore directly instead of DAO in order to schedule a task attempt that has exhausted attempts
             KeyValueStore<Long, TaskAttemptsCollection> attemptsStore = processorTestDriver.getAttemptStore();
             assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
 
@@ -199,7 +200,7 @@ class KStreamRetryableForeachTest {
             }
             TaskAttemptsCollection collection = new TaskAttemptsCollection();
             collection.add(testAttempt);
-            attemptsStore.put(testAttempt.getTimeOfNextAttempt().toInstant().getEpochSecond(), collection);
+            attemptsStore.put(testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), collection);
 
             // Execute retry
             processorTestDriver.getRetryPunctuator().punctuate(testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli());
