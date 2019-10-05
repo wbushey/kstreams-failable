@@ -3,13 +3,13 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.retryableTest.TestTopology;
 import org.apache.kafka.streams.TopologyTestDriver;
-import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.test.ConsumerRecordFactory;
 
-import java.util.*;
+import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;

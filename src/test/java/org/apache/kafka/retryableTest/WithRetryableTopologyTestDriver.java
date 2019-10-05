@@ -5,9 +5,9 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverExtension;
 import org.apache.kafka.retryableTest.extentions.topologyTestDriver.WithTopologyTestDriver;
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
-import org.apache.kafka.streams.kstream.internals.RetryableTopologyTestDriver;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
+import org.apache.kafka.streams.kstream.internals.RetryableTopologyTestDriver;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Properties;

@@ -3,20 +3,21 @@ package org.apache.kafka.streams.kstream.internals;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
+import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
-import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptsCollectionSerde;
-import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.Stores;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 

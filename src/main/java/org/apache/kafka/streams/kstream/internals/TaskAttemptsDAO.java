@@ -1,17 +1,12 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.RetryableKStream;
+import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.KeyValueIterator;
 
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class TaskAttemptsDAO {

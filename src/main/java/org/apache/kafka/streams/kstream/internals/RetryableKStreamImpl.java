@@ -1,17 +1,13 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.graph.ProcessorParameters;
 import org.apache.kafka.streams.kstream.internals.graph.StatefulProcessorNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamsGraphNode;
-import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
-import org.apache.kafka.streams.kstream.internals.serialization.serdes.TaskAttemptSerde;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
-import org.apache.kafka.streams.state.Stores;
 
 import java.lang.reflect.Field;
 import java.util.Objects;

@@ -2,7 +2,7 @@ package org.apache.kafka.streams.kstream.internals.models;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import java.io.*;
+import java.io.Serializable;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;

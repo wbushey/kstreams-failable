@@ -8,13 +8,11 @@ import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.*;
-import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;

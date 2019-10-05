@@ -1,38 +1,35 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
-import ch.qos.logback.classic.Logger;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.retryableTest.Pair;
 import org.apache.kafka.retryableTest.WithRetryableMockProcessorContext;
 import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockFailableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
 import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockFailableExceptionForeach;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockRetryableExceptionForeach;
+import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.retryableTest.Pair;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.stream.Stream;
 

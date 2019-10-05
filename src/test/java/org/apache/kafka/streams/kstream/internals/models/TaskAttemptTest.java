@@ -2,16 +2,15 @@ package org.apache.kafka.streams.kstream.internals.models;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.time.ZonedDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.time.ZonedDateTime;
 import java.util.LinkedList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
