@@ -104,8 +104,4 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
         dao.getAllTaskAttempts().forEachRemaining(scheduledTaskAttempts::add);
         return scheduledTaskAttempts;
     }
-
-    public Integer getCountOfScheduledTaskAttempts(){
-        return getScheduledTaskAttempts().size();
-    }
 }

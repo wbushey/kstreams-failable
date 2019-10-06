@@ -7,11 +7,8 @@ import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.util.Iterator;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
-import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.flattenedStreamFor;
-import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.iterableFor;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.*;
 
 public class TaskAttemptsDAO {
     private KeyValueStore<Long, TaskAttemptsCollection> attemptsStore;
@@ -54,14 +51,10 @@ public class TaskAttemptsDAO {
     }
 
     public Iterator<KeyValue<Long, TaskAttempt>> getAllTaskAttemptsScheduledBefore(long time){
-        return flatten(iterableFor(this.attemptsStore.range(0L, time)));
+        return flattenedIteratorFor(iterableFor(this.attemptsStore.range(0L, time)));
     }
 
     public Iterator<KeyValue<Long, TaskAttempt>> getAllTaskAttempts(){
-        return flatten(iterableFor(this.attemptsStore.all()));
-    }
-
-    private Iterator<KeyValue<Long, TaskAttempt>> flatten(Iterable<KeyValue<Long, TaskAttemptsCollection>> tacIterator){
-        return flattenedStreamFor(tacIterator).iterator();
+        return flattenedIteratorFor(iterableFor(this.attemptsStore.all()));
     }
 }

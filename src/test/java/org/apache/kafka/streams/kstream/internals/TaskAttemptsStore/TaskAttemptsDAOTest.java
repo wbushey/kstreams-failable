@@ -2,10 +2,8 @@ package org.apache.kafka.streams.kstream.internals.TaskAttemptsStore;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.RetryableKStream;
 import org.apache.kafka.streams.kstream.internals.StoreBuilders;
-import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;
@@ -17,13 +15,11 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 
+import static org.apache.kafka.retryableTest.AttemptStoreAssertions.expect;
+import static org.apache.kafka.retryableTest.TaskAttemptsStoreTestAccess.access;
 import static org.junit.jupiter.api.Assertions.*;
 
-//TODO create getScheduleJobsCount helper, use that here instead of approximate count
 class TaskAttemptsDAOTest {
     private static final String DEAFULT_TEST_ATTEMPTS_STORE_NAME = "testAttemptsStore";
     private static final String DEAFULT_TEST_TOPIC_NAME = "testTopic";
@@ -47,48 +43,34 @@ class TaskAttemptsDAOTest {
     @Test
     void canRetrieveAllTaskAttemptsScheduledBeforeOrAtATime(){
         ZonedDateTime now = ZonedDateTime.now();
-        ZonedDateTime timeToGetTaskAttempsAt = now.plus(Duration.ofMillis(100));
-        assertEquals(0, attemptsStore.approximateNumEntries());
+        ZonedDateTime timeToGetTaskAttemptsAt = now.plus(Duration.ofMillis(100));
+        expect(attemptsStore).toBeEmpty();
 
-        TaskAttempt veryDelayedAttempt = createTestTaskAttempt("key", "value");
-        veryDelayedAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt.minus(Duration.ofDays(5)));
-        subject.schedule(veryDelayedAttempt);
+        // Create and schedule attempts at various times before and up to the time we will query at
+        TaskAttempt veryDelayedAttempt = createTaskAttemptAndScheduleAt("key", "value", timeToGetTaskAttemptsAt.minus(Duration.ofDays(5)));
+        TaskAttempt delayedAttempt = createTaskAttemptAndScheduleAt("key", "value", timeToGetTaskAttemptsAt.minus(Duration.ofMinutes(5)));
+        TaskAttempt withinSecondAttempt = createTaskAttemptAndScheduleAt("key", "value", timeToGetTaskAttemptsAt.minus(Duration.ofMillis(400)));
+        TaskAttempt exactTimeAttempt = createTaskAttemptAndScheduleAt("key", "value", timeToGetTaskAttemptsAt);
 
-        TaskAttempt delayedAttempt = createTestTaskAttempt("key", "value");
-        delayedAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt.minus(Duration.ofMinutes(5)));
-        subject.schedule(delayedAttempt);
+        // Create and schedule a couple of tasks at times after the time we will query at
+        createTaskAttemptAndScheduleAt("key", "value", timeToGetTaskAttemptsAt.plus(Duration.ofMillis(1)));
+        createTaskAttemptAndScheduleAt("key", "value", timeToGetTaskAttemptsAt.plus(Duration.ofDays(5)));
 
-        TaskAttempt withinSecondAttempt = createTestTaskAttempt("key", "value");
-        withinSecondAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt.minus(Duration.ofMillis(400)));
-        subject.schedule(withinSecondAttempt);
-
-        TaskAttempt exactTimeAttempt = createTestTaskAttempt("key", "value");
-        exactTimeAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt);
-        subject.schedule(exactTimeAttempt);
-
-        TaskAttempt afterTimeAttempt = createTestTaskAttempt("key", "value");
-        afterTimeAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt.plus(Duration.ofMillis(1)));
-        subject.schedule(afterTimeAttempt);
-
-        TaskAttempt veryAfterTimeAttempt = createTestTaskAttempt("key", "value");
-        veryAfterTimeAttempt.setTimeOfNextAttempt(timeToGetTaskAttempsAt.plus(Duration.ofDays(5)));
-        subject.schedule(veryAfterTimeAttempt);
-
-        assertEquals(6, attemptsStore.approximateNumEntries());
-
-        assertTaskAttemptsScheduledBeforeTime(timeToGetTaskAttempsAt,
-                                              Arrays.asList(veryDelayedAttempt, delayedAttempt, withinSecondAttempt, exactTimeAttempt));
+        expect(attemptsStore).toHaveStoredTaskAttemptsCountOf(6);
+        expect(attemptsStore).toHaveTaskAttemptsBeforeTime(Arrays.asList(veryDelayedAttempt, delayedAttempt, withinSecondAttempt, exactTimeAttempt),
+                                                            timeToGetTaskAttemptsAt.toInstant().toEpochMilli());
     }
 
     @DisplayName("It uses the TaskAttempt's TimeOfNextAttempt to schedule the task in the attempts store")
     @Test
     void usesTimeOfNextAttemptToScheduleInAttemptStore(){
-        assertEquals(0, attemptsStore.approximateNumEntries());
+        expect(attemptsStore).toBeEmpty();
         TaskAttempt attempt = createTestTaskAttempt("key", "value");
         subject.schedule(attempt);
-        assertEquals(1, attemptsStore.approximateNumEntries());
+        expect(attemptsStore).toHaveStoredTaskAttemptsCountOf(1);
 
-        assertEquals(attempt, attemptsStore.get(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli()).toArray()[0]);
+        Long timeOfAttempt = attempt.getTimeOfNextAttempt().toInstant().toEpochMilli();
+        expect(attemptsStore).toHaveTaskAttemptAtTime(attempt, timeOfAttempt);
     }
 
     @DisplayName("It throws a FailableException when attempting to schedule a task that has exhausted it's attempts.")
@@ -99,9 +81,7 @@ class TaskAttemptsDAOTest {
             attempt.prepareForNextAttempt();
         }
 
-        assertThrows(RetryableKStream.RetriesExhaustedException.class, () -> {
-            subject.schedule(attempt);
-        });
+        assertThrows(RetryableKStream.RetriesExhaustedException.class, () -> subject.schedule(attempt));
     }
 
 
@@ -109,12 +89,10 @@ class TaskAttemptsDAOTest {
     @Test
     void unscheduleTaskAttemptFromAttemptStore(){
         TaskAttempt attempt = createTestTaskAttempt("key", "value");
-        TaskAttemptsCollection attempts = new TaskAttemptsCollection();
-        attempts.add(attempt);
-        attemptsStore.put(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempts);
-        assertEquals(1, attemptsStore.approximateNumEntries());
+        access(attemptsStore).addAttemptAt(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
+        assertEquals(1, access(attemptsStore).getStoredTaskAttemptsCount());
         subject.unschedule(attempt);
-        assertEquals(0, attemptsStore.approximateNumEntries());
+        assertEquals(0, access(attemptsStore).getStoredTaskAttemptsCount());
     }
 
     @DisplayName("It can schedule multiple task attempts at the same time")
@@ -132,15 +110,7 @@ class TaskAttemptsDAOTest {
         subject.schedule(attempt2);
         subject.schedule(attempt3);
 
-        assertTaskAttemptsScheduledBeforeTime(aTime, Arrays.asList(attempt1, attempt2, attempt3));
-    }
-
-    private void assertTaskAttemptsScheduledBeforeTime(ZonedDateTime time, List<TaskAttempt> expectedAttempts){
-        Iterator<KeyValue<Long, TaskAttempt>> retrievedAttemptsItr = subject.getAllTaskAttemptsScheduledBefore(time.toInstant().toEpochMilli());
-        List<TaskAttempt> retrievedAttempts = new LinkedList<>();
-        retrievedAttemptsItr.forEachRemaining(pair -> retrievedAttempts.add(pair.value));
-        assertEquals(expectedAttempts.size(), retrievedAttempts.size(), "Retrieved scheduled TaskAttempts count different than expected scheduled TaskAttempts");
-        expectedAttempts.forEach(attempt -> assertTrue(retrievedAttempts.contains(attempt)));
+        expect(attemptsStore).toHaveTaskAttemptsBeforeTime(Arrays.asList(attempt1, attempt2, attempt3), aTime);
     }
 
     private TaskAttempt createTestTaskAttempt(String key, String value){
@@ -151,6 +121,13 @@ class TaskAttemptsDAOTest {
                 stringSerde.serializer().serialize(topicName, key),
                 stringSerde.serializer().serialize(topicName, value)
         );
+    }
+
+    private TaskAttempt createTaskAttemptAndScheduleAt(String key, String value, ZonedDateTime time){
+        TaskAttempt attempt = createTestTaskAttempt(key, value);
+        attempt.setTimeOfNextAttempt(time);
+        subject.schedule(attempt);
+        return attempt;
     }
 
 }

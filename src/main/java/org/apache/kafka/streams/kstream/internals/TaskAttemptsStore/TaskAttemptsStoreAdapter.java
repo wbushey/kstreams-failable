@@ -5,6 +5,7 @@ import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.state.KeyValueIterator;
 
+import java.util.Iterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -30,4 +31,10 @@ public class TaskAttemptsStoreAdapter {
     public static Iterable<KeyValue<Long, TaskAttemptsCollection>> iterableFor(KeyValueIterator<Long, TaskAttemptsCollection> iterator){
         return () -> iterator;
     }
+
+
+    public static Iterator<KeyValue<Long, TaskAttempt>> flattenedIteratorFor(Iterable<KeyValue<Long, TaskAttemptsCollection>> tacIterator){
+        return flattenedStreamFor(tacIterator).iterator();
+    }
+
 }

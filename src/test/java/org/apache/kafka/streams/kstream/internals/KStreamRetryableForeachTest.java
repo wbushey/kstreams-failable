@@ -34,6 +34,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Stream;
 
+import static org.apache.kafka.retryableTest.AttemptStoreAssertions.*;
 import static org.apache.kafka.retryableTest.TopologyFactory.createTopologyProps;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,7 +61,7 @@ class KStreamRetryableForeachTest {
         ZonedDateTime now = ZonedDateTime.now();
         KeyValueStore<Long, TaskAttemptsCollection> attemptsStore = processorTestDriver.getAttemptStore();
         TaskAttemptsDAO dao = processorTestDriver.getTaskAttemptsDAO();
-        assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+        expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
         dao.schedule(createTestTaskAttempt("veryOldKey", "veryOldValue", now.minusDays(5), processorTestDriver));
         dao.schedule(createTestTaskAttempt("recentOldKey1", "recentOldValue1", now.minusSeconds(1), processorTestDriver));
@@ -95,12 +96,12 @@ class KStreamRetryableForeachTest {
     @MethodSource("retryableProcessorDriverProvider")
     void testRetryDeletionOnSuccess(RetryableProcessorTestDriver<String, String> processorTestDriver){
         TaskAttemptsDAO taskAttemptsDAO = processorTestDriver.getTaskAttemptsDAO();
-        assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+        expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
         // Add an attempt to the store
         TaskAttempt testAttempt = createTestTaskAttempt("key", "value", ZonedDateTime.now(), processorTestDriver);
         taskAttemptsDAO.schedule(testAttempt);
-        assertEquals(1, processorTestDriver.getCountOfScheduledTaskAttempts());
+        expect(processorTestDriver.getAttemptStore()).toHaveStoredTaskAttemptsCountOf(1);
 
         // Execute the attempt, then assert that the attempt is no longer in the store
         KeyValue<Long, TaskAttempt> existingAttempt = processorTestDriver.getScheduledTaskAttempts().get(0);
@@ -124,7 +125,7 @@ class KStreamRetryableForeachTest {
         @DisplayName("It does not schedule a retry via the attempts store")
         void testSchedulingRetry(){
             processorTestDriver.pipeInput("key", "value");
-            assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toBeEmpty();
         }
     }
 
@@ -145,7 +146,7 @@ class KStreamRetryableForeachTest {
         void testSchedulingRetry(){
             processorTestDriver.pipeInput("key", "value");
 
-            assertEquals(1, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toHaveStoredTaskAttemptsCountOf(1);
             assertAttemptForSameMessage("key", "value",
                                         processorTestDriver.getInputTopicName(),
                                         processorTestDriver.getScheduledTaskAttempts().get(0),
@@ -159,7 +160,7 @@ class KStreamRetryableForeachTest {
         @DisplayName("It schedules another retry via the attempts store if an attempt is executed and throws a RetryableException")
         void testRetryRetryOnRetryableException(){
             TaskAttemptsDAO taskAttemptsDAO = processorTestDriver.getTaskAttemptsDAO();
-            assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
             // Add an attempt to the store
             ZonedDateTime timeOfFirstAttempt = ZonedDateTime.now();
@@ -172,7 +173,7 @@ class KStreamRetryableForeachTest {
 
             // Assert a new attempt has been scheduled
             List<KeyValue<Long, TaskAttempt>> scheduledAttempts = processorTestDriver.getScheduledTaskAttempts();
-            assertEquals(1, scheduledAttempts.size());
+            expect(processorTestDriver.getAttemptStore()).toHaveStoredTaskAttemptsCountOf(1);
             assertTrue(scheduledAttempts.get(0).key > timeOfFirstAttempt.toInstant().toEpochMilli());
             assertTrue(scheduledAttempts.get(0).value.getAttemptsCount() > previousAttemptsCount);
 
@@ -188,7 +189,7 @@ class KStreamRetryableForeachTest {
         void testRetryExhaustionException() throws IOException {
             // Use the KeyValueStore directly instead of DAO in order to schedule a task attempt that has exhausted attempts
             KeyValueStore<Long, TaskAttemptsCollection> attemptsStore = processorTestDriver.getAttemptStore();
-            assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
             // Create an attempt, advance it to it's final attempt, then add it to the store
             TaskAttempt testAttempt = createTestTaskAttempt("key", "value", ZonedDateTime.now(), processorTestDriver);
@@ -203,7 +204,7 @@ class KStreamRetryableForeachTest {
             processorTestDriver.getRetryPunctuator().punctuate(testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli());
 
             // No new attempt should be scheduled
-            assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
             // The Dead Letter Topic should receive a message
             assertMessageForwardedToDLT(processorTestDriver, testAttempt.getTimeReceived().toInstant().toEpochMilli(), 11);
@@ -242,9 +243,9 @@ class KStreamRetryableForeachTest {
         @Test
         @DisplayName("It does not schedule a retry via the attempts store when a FailableException is thrown by the block")
         void testNoRetryScheduledOnFailableException(){
-            assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toBeEmpty();
             processorTestDriver.pipeInput("key", "value");
-            assertEquals(0, processorTestDriver.getCountOfScheduledTaskAttempts());
+            expect(processorTestDriver.getAttemptStore()).toBeEmpty();
         }
 
 
