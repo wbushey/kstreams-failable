@@ -1,9 +1,11 @@
-package org.apache.kafka.streams.kstream.internals;
+package org.apache.kafka.streams.kstream.internals.TaskAttemptsStore;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.RetryableKStream;
+import org.apache.kafka.streams.kstream.internals.StoreBuilders;
+import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;

@@ -1,4 +1,4 @@
-package org.apache.kafka.streams.kstream.internals;
+package org.apache.kafka.streams.kstream.internals.TaskAttemptsStore;
 
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.RetryableKStream;
@@ -7,10 +7,16 @@ import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.util.Iterator;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.flattenedStreamFor;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.iterableFor;
 
 public class TaskAttemptsDAO {
     private KeyValueStore<Long, TaskAttemptsCollection> attemptsStore;
+
+
 
     public TaskAttemptsDAO(KeyValueStore<Long, TaskAttemptsCollection> attemptsStore){
         this.attemptsStore = attemptsStore;
@@ -48,28 +54,14 @@ public class TaskAttemptsDAO {
     }
 
     public Iterator<KeyValue<Long, TaskAttempt>> getAllTaskAttemptsScheduledBefore(long time){
-        // Convert the Iterator provided by range into an Iterable, which can be converted into a Stream
-        Iterable<KeyValue<Long, TaskAttemptsCollection>> iterableOfSetsOfScheduledTasks = () -> this.attemptsStore.range(0L, time);
-
-        return flatten(iterableOfSetsOfScheduledTasks);
+        return flatten(iterableFor(this.attemptsStore.range(0L, time)));
     }
 
     public Iterator<KeyValue<Long, TaskAttempt>> getAllTaskAttempts(){
-        // Convert the Iterator provided by all into an Iterable, which can be converted into a Stream
-        Iterable<KeyValue<Long, TaskAttemptsCollection>> iterableOfSetsOfScheduledTasks = () -> this.attemptsStore.all();
-
-        return flatten(iterableOfSetsOfScheduledTasks);
+        return flatten(iterableFor(this.attemptsStore.all()));
     }
 
     private Iterator<KeyValue<Long, TaskAttempt>> flatten(Iterable<KeyValue<Long, TaskAttemptsCollection>> tacIterator){
-        // Convert Iterable into a Stream
-        // Flatmap will turn each item in each Set into an item in the resulting stream
-        // Within the Flatmap, the Set is also turned into a stream, and each TaskAttempt is mapped to a KeyValue of timestamp, TaskAttempt
-        // Finally, the stream is converted into an iterator
-        return StreamSupport.stream(tacIterator.spliterator(), false)
-                .flatMap(kv -> StreamSupport.stream(kv.value.spliterator(), false)
-                        .map(taskAttempt -> new KeyValue<>(kv.key, taskAttempt)))
-                .iterator();
-
+        return flattenedStreamFor(tacIterator).iterator();
     }
 }

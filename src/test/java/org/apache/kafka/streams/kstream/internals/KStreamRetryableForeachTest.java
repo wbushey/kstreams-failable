@@ -16,6 +16,7 @@ import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockFailableExceptionF
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockRetryableExceptionForeach;
 import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.streams.KeyValue;
+import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;
