@@ -3,7 +3,6 @@ package org.apache.kafka.streams.kstream.internals;
 import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.retryableTestSupport.Pair;
@@ -18,9 +17,7 @@ import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockSuccessfulF
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
-import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;
-import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +31,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static org.apache.kafka.retryableTestSupport.AttemptStoreAssertions.*;
+import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
+import static org.apache.kafka.retryableTestSupport.assertions.AttemptStoreAssertions.expect;
+import static org.apache.kafka.retryableTestSupport.assertions.CallbackAssertions.expect;
+import static org.apache.kafka.retryableTestSupport.assertions.LogAssertions.expect;
+import static org.apache.kafka.retryableTestSupport.assertions.ScheduleKeyValueAssertions.expect;
 import static org.apache.kafka.retryableTestSupport.TopologyFactory.createTopologyProps;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,7 +52,7 @@ class KStreamRetryableForeachTest {
     @MethodSource("retryableProcessorDriverProvider")
     void testImmediateExecution(RetryableProcessorTestDriver<String, String> processorTestDriver){
         processorTestDriver.getProcessor().process("key", "value");
-        assertEquals(Collections.singletonList(new Pair<>("key", "value")), processorTestDriver.getAction().getReceivedParameters());
+        expect(processorTestDriver.getAction()).toHaveReceivedExactlyOneCall(new Pair<>("key", "value"));
     }
 
     @ParameterizedTest
@@ -59,7 +60,6 @@ class KStreamRetryableForeachTest {
     @MethodSource("retryableProcessorDriverProvider")
     void testPerformRetry(RetryableProcessorTestDriver<String, String> processorTestDriver){
         ZonedDateTime now = ZonedDateTime.now();
-        KeyValueStore<Long, TaskAttemptsCollection> attemptsStore = processorTestDriver.getAttemptStore();
         TaskAttemptsDAO dao = processorTestDriver.getTaskAttemptsDAO();
         expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
@@ -72,9 +72,9 @@ class KStreamRetryableForeachTest {
 
 
         // Advance stream time by 1 second
-        processorTestDriver.getRetryPunctuator().punctuate(now.toInstant().toEpochMilli() + 1000L);
+        processorTestDriver.advanceStreamTime(1000L);
 
-        assertActionReceivedCalls(processorTestDriver, Arrays.asList(
+        expect(processorTestDriver.getAction()).toHaveReceivedExactlyCalls(Arrays.asList(
                 new Pair<>("veryOldKey", "veryOldValue"),
                 new Pair<>("recentOldKey1", "recentOldValue1"),
                 new Pair<>("recentOldKey2", "recentOldValue2"),
@@ -87,7 +87,7 @@ class KStreamRetryableForeachTest {
     @DisplayName("It punctuates every half a second")
     @MethodSource("retryableProcessorDriverProvider")
     void testPunctuateSchedule(RetryableProcessorTestDriver<String, String> processorTestDriver){
-        assertEquals(500L, processorTestDriver.getContext().scheduledPunctuators().get(0).getIntervalMs());
+        assertEquals(500L, processorTestDriver.getProcessorContext().scheduledPunctuators().get(0).getIntervalMs());
     }
 
 
@@ -104,10 +104,10 @@ class KStreamRetryableForeachTest {
         expect(processorTestDriver.getAttemptStore()).toHaveStoredTaskAttemptsCountOf(1);
 
         // Execute the attempt, then assert that the attempt is no longer in the store
-        KeyValue<Long, TaskAttempt> existingAttempt = processorTestDriver.getScheduledTaskAttempts().get(0);
-        processorTestDriver.getRetryPunctuator().punctuate(testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli());
-        List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = processorTestDriver.getScheduledTaskAttempts();
-        assertFalse(scheduledTaskAttempts.contains(existingAttempt));
+        KeyValue<Long, TaskAttempt> existingAttempt = access(processorTestDriver.getAttemptStore()).getAllTaskAttempts().get(0);
+        processorTestDriver.advanceStreamTimeTo(testAttempt.getTimeOfNextAttempt());
+
+        expect(processorTestDriver.getAttemptStore()).toNotHaveAttempt(existingAttempt);
     }
 
     /*
@@ -147,12 +147,11 @@ class KStreamRetryableForeachTest {
             processorTestDriver.pipeInput("key", "value");
 
             expect(processorTestDriver.getAttemptStore()).toHaveStoredTaskAttemptsCountOf(1);
-            assertAttemptForSameMessage("key", "value",
-                                        processorTestDriver.getInputTopicName(),
-                                        processorTestDriver.getScheduledTaskAttempts().get(0),
-                                        processorTestDriver.getDefaultKeySerde().deserializer(),
-                                        processorTestDriver.getDefaultValueSerde().deserializer());
-
+            expect(access(processorTestDriver.getAttemptStore()).getAllTaskAttempts().get(0))
+                    .toBeAttemptForMessage("key", "value",
+                                            processorTestDriver.getInputTopicName(),
+                                            processorTestDriver.getDefaultKeySerde().deserializer(),
+                                            processorTestDriver.getDefaultValueSerde().deserializer());
         }
 
 
@@ -169,26 +168,25 @@ class KStreamRetryableForeachTest {
             Integer previousAttemptsCount = testAttempt.getAttemptsCount();
 
             // Execute retry
-            processorTestDriver.getRetryPunctuator().punctuate(timeOfFirstAttempt.toInstant().toEpochMilli());
+            processorTestDriver.advanceStreamTimeTo(timeOfFirstAttempt);
 
             // Assert a new attempt has been scheduled
-            List<KeyValue<Long, TaskAttempt>> scheduledAttempts = processorTestDriver.getScheduledTaskAttempts();
             expect(processorTestDriver.getAttemptStore()).toHaveStoredTaskAttemptsCountOf(1);
-            assertTrue(scheduledAttempts.get(0).key > timeOfFirstAttempt.toInstant().toEpochMilli());
-            assertTrue(scheduledAttempts.get(0).value.getAttemptsCount() > previousAttemptsCount);
+            KeyValue<Long, TaskAttempt> scheduledAttempt = access(processorTestDriver.getAttemptStore()).getAllTaskAttempts().get(0);
+            expect(scheduledAttempt).toBeScheduledLaterThan(timeOfFirstAttempt);
+            expect(scheduledAttempt).toHaveMoreAttemptsThan(previousAttemptsCount);
 
-            assertAttemptForSameMessage("key", "value",
-                    processorTestDriver.getInputTopicName(),
-                    processorTestDriver.getScheduledTaskAttempts().get(0),
-                    processorTestDriver.getDefaultKeySerde().deserializer(),
-                    processorTestDriver.getDefaultValueSerde().deserializer());
+            expect(access(processorTestDriver.getAttemptStore()).getAllTaskAttempts().get(0))
+                    .toBeAttemptForMessage("key", "value",
+                            processorTestDriver.getInputTopicName(),
+                            processorTestDriver.getDefaultKeySerde().deserializer(),
+                            processorTestDriver.getDefaultValueSerde().deserializer());
         }
 
         @Test
         @DisplayName("It treats a job that has exhausted it's retries as having thrown a FailableException")
         void testRetryExhaustionException() throws IOException {
             // Use the KeyValueStore directly instead of DAO in order to schedule a task attempt that has exhausted attempts
-            KeyValueStore<Long, TaskAttemptsCollection> attemptsStore = processorTestDriver.getAttemptStore();
             expect(processorTestDriver.getAttemptStore()).toBeEmpty();
 
             // Create an attempt, advance it to it's final attempt, then add it to the store
@@ -196,12 +194,10 @@ class KStreamRetryableForeachTest {
             while (!testAttempt.hasExhaustedRetries()){
                 testAttempt.prepareForNextAttempt();
             }
-            TaskAttemptsCollection collection = new TaskAttemptsCollection();
-            collection.add(testAttempt);
-            attemptsStore.put(testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), collection);
+            access(processorTestDriver.getAttemptStore()).addAttemptAt(testAttempt.getTimeOfNextAttempt(), testAttempt);
 
             // Execute retry
-            processorTestDriver.getRetryPunctuator().punctuate(testAttempt.getTimeOfNextAttempt().toInstant().toEpochMilli());
+            processorTestDriver.advanceStreamTimeTo(testAttempt.getTimeOfNextAttempt());
 
             // No new attempt should be scheduled
             expect(processorTestDriver.getAttemptStore()).toBeEmpty();
@@ -216,16 +212,13 @@ class KStreamRetryableForeachTest {
         void testLogging(){
             processorTestDriver.pipeInput("key", "value");
 
-            assertEquals(1, logAppender.list.size());
-            assertEquals(Level.WARN, logAppender.list.get(0).getLevel());
-            assertEquals(
+            expect(logAppender).toHaveLoggedExactly(Level.WARN,
                     "A Retryable Error has occurred while processing the following message"
                     + "\n\tAttempt Number:\t1"
                     + "\n\tTopic:\t\t" + processorTestDriver.getInputTopicName()
                     + "\n\tKey:\t\tkey"
-                    + "\n\tError:\t\t" + processorTestDriver.getAction().getException().toString(),
-                    logAppender.list.get(0).getMessage()
-                    );
+                    + "\n\tError:\t\t" + processorTestDriver.getAction().getException().toString()
+            );
         }
     }
 
@@ -263,29 +256,21 @@ class KStreamRetryableForeachTest {
         void testLogging(){
             processorTestDriver.pipeInput("key", "value");
 
-            assertEquals(1, logAppender.list.size());
-            assertEquals(Level.ERROR, logAppender.list.get(0).getLevel());
-            assertEquals(
+            expect(logAppender).toHaveLoggedExactly(Level.ERROR,
                     "A Non-Retryable Error has occurred while processing the following message"
                     + "\n\tTopic:\t\t" + processorTestDriver.getInputTopicName()
                     + "\n\tKey:\t\tkey"
-                    + "\n\tError:\t\t" + processorTestDriver.getAction().getException().toString(),
-                    logAppender.list.get(0).getMessage()
-                    );
+                    + "\n\tError:\t\t" + processorTestDriver.getAction().getException().toString()
+            );
         }
     }
 
-
-    private void assertAttemptForSameMessage(String key, String value, String topicName, KeyValue<Long, TaskAttempt> savedAttempt, Deserializer<String> keyDerializer, Deserializer<String> valueDerializer  ){
-        assertEquals(key, keyDerializer.deserialize(topicName, savedAttempt.value.getMessage().keyBytes));
-        assertEquals(value, valueDerializer.deserialize(topicName, savedAttempt.value.getMessage().valueBytes));
-    }
 
     /*
      * Assert that the processor sent a message to the Dead Letter Topic
      */
     private void assertMessageForwardedToDLT(RetryableProcessorTestDriver<String, String> processorTestDriver, Long timeOfReceipt, Integer attemptCount) throws IOException{
-        List<MockProcessorContext.CapturedForward> forwarded = processorTestDriver.getContext().forwarded(processorTestDriver.getDeadLetterNodeName());
+        List<MockProcessorContext.CapturedForward> forwarded = processorTestDriver.getForwardsToDeadLetterTopic();
         assertEquals(1, forwarded.size());
         String forwardedKey = (String) forwarded.get(0).keyValue().key;
         String forwardedAttemptData = (String) forwarded.get(0).keyValue().value;
@@ -304,18 +289,6 @@ class KStreamRetryableForeachTest {
         assertEquals("key", messageMap.get("key"));
         assertEquals("value", messageMap.get("value"));
     }
-
-
-    /*
-     * Assert that the mock action received calls with the specified arguments. This is not order dependent.
-     */
-    private void assertActionReceivedCalls(RetryableProcessorTestDriver<String, String> processorTestDriver, List<Pair<String, String>> parameters){
-        assertEquals(parameters.size(), processorTestDriver.getAction().getReceivedParameters().size());
-        parameters.forEach(parameter -> {
-            assertTrue(processorTestDriver.getAction().getReceivedParameters().contains(parameter));
-        });
-    }
-
 
 
     private TaskAttempt createTestTaskAttempt(String key, String value, ZonedDateTime timeOfNextAttempt, RetryableTestDriver<String, String> retryableTestDriver){

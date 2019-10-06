@@ -16,7 +16,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 
-import static org.apache.kafka.retryableTestSupport.AttemptStoreAssertions.expect;
+import static org.apache.kafka.retryableTestSupport.assertions.AttemptStoreAssertions.expect;
 import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -89,7 +89,7 @@ class TaskAttemptsDAOTest {
     @Test
     void unscheduleTaskAttemptFromAttemptStore(){
         TaskAttempt attempt = createTestTaskAttempt("key", "value");
-        access(attemptsStore).addAttemptAt(attempt.getTimeOfNextAttempt().toInstant().toEpochMilli(), attempt);
+        access(attemptsStore).addAttemptAt(attempt.getTimeOfNextAttempt(), attempt);
         assertEquals(1, access(attemptsStore).getStoredTaskAttemptsCount());
         subject.unschedule(attempt);
         assertEquals(0, access(attemptsStore).getStoredTaskAttemptsCount());

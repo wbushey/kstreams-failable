@@ -11,6 +11,7 @@ import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.Punctuator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
+import java.time.ZonedDateTime;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -57,7 +58,7 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
         return processor;
     }
 
-    public MockProcessorContext getContext() {
+    public MockProcessorContext getProcessorContext() {
         return mockContext;
     }
 
@@ -68,10 +69,6 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
     @Override
     public String getInputTopicName() {
         return inputTopicName;
-    }
-
-    public String getDeadLetterNodeName(){
-        return deadLetterNodeName;
     }
 
     @Override
@@ -99,9 +96,24 @@ public class RetryableProcessorTestDriver<K, V> implements RetryableTestDriver<K
         processor.process(key, value);
     }
 
-    public List<KeyValue<Long, TaskAttempt>> getScheduledTaskAttempts() {
-        List<KeyValue<Long, TaskAttempt>> scheduledTaskAttempts = new LinkedList<>();
-        dao.getAllTaskAttempts().forEachRemaining(scheduledTaskAttempts::add);
-        return scheduledTaskAttempts;
+    public void advanceStreamTime(Long millis){
+        getRetryPunctuator().punctuate(ZonedDateTime.now().toInstant().toEpochMilli() + millis);
+    }
+
+    public void advanceStreamTimeTo(ZonedDateTime time){
+        advanceStreamTimeTo(time.toInstant().toEpochMilli());
+    }
+
+    public void advanceStreamTimeTo(Long time){
+        getRetryPunctuator().punctuate(time);
+    }
+
+
+    public String getDeadLetterNodeName(){
+        return deadLetterNodeName;
+    }
+
+    public List<MockProcessorContext.CapturedForward> getForwardsToDeadLetterTopic(){
+        return getProcessorContext().forwarded(getDeadLetterNodeName());
     }
 }

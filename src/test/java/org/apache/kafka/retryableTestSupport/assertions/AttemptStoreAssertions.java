@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTestSupport;
+package org.apache.kafka.retryableTestSupport.assertions;
 
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
@@ -13,8 +13,7 @@ import java.util.List;
 import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
 import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.iterableFor;
 import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.flattenedIteratorFor;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AttemptStoreAssertions {
     private final KeyValueStore<Long, TaskAttemptsCollection> attemptsStore;
@@ -50,6 +49,10 @@ public class AttemptStoreAssertions {
         retrievedAttemptsItr.forEachRemaining(pair -> retrievedAttempts.add(pair.value));
         assertEquals(expectedAttempts.size(), retrievedAttempts.size(), "Retrieved scheduled TaskAttempts count different than expected scheduled TaskAttempts");
         expectedAttempts.forEach(attempt -> assertTrue(retrievedAttempts.contains(attempt)));
+    }
+
+    public void toNotHaveAttempt(KeyValue<Long, TaskAttempt>attempt){
+        assertFalse(access(attemptsStore).getAllTaskAttempts().contains(attempt));
     }
 
     private AttemptStoreAssertions(KeyValueStore<Long, TaskAttemptsCollection> attemptsStore){
