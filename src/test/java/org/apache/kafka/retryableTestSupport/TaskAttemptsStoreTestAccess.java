@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;

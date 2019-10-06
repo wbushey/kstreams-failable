@@ -1,8 +1,8 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.mocks.mockSerdes.MockDefaultSerde;
+import org.apache.kafka.retryableTestSupport.mocks.mockSerdes.MockDefaultSerde;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -13,7 +13,7 @@ import org.apache.kafka.streams.kstream.internals.RetryableForeachAction;
 
 import java.util.Properties;
 
-import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
+import static org.apache.kafka.retryableTestSupport.TestTopology.DEFAULT_TEST_NODE_NAME;
 
 public class TopologyFactory<K, V> {
 

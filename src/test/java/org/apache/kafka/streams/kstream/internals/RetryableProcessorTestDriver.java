@@ -1,7 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;

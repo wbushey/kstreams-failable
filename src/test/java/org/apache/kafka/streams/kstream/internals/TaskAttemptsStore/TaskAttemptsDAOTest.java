@@ -16,8 +16,8 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 
-import static org.apache.kafka.retryableTest.AttemptStoreAssertions.expect;
-import static org.apache.kafka.retryableTest.TaskAttemptsStoreTestAccess.access;
+import static org.apache.kafka.retryableTestSupport.AttemptStoreAssertions.expect;
+import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TaskAttemptsDAOTest {

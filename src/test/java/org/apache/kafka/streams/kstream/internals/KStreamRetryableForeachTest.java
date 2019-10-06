@@ -6,15 +6,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.Pair;
-import org.apache.kafka.retryableTest.WithRetryableMockProcessorContext;
-import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
-import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockFailableExceptionForeachExtension;
-import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
-import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockFailableExceptionForeach;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockRetryableExceptionForeach;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
+import org.apache.kafka.retryableTestSupport.Pair;
+import org.apache.kafka.retryableTestSupport.WithRetryableMockProcessorContext;
+import org.apache.kafka.retryableTestSupport.extentions.TopologyPropertiesExtension;
+import org.apache.kafka.retryableTestSupport.extentions.mockCallbacks.MockFailableExceptionForeachExtension;
+import org.apache.kafka.retryableTestSupport.extentions.mockCallbacks.MockRetryableExceptionForeachExtension;
+import org.apache.kafka.retryableTestSupport.extentions.mockCallbacks.MockSuccessfulForeachExtension;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockFailableExceptionForeach;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockRetryableExceptionForeach;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockSuccessfulForeach;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
@@ -34,8 +34,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static org.apache.kafka.retryableTest.AttemptStoreAssertions.*;
-import static org.apache.kafka.retryableTest.TopologyFactory.createTopologyProps;
+import static org.apache.kafka.retryableTestSupport.AttemptStoreAssertions.*;
+import static org.apache.kafka.retryableTestSupport.TopologyFactory.createTopologyProps;
 import static org.junit.jupiter.api.Assertions.*;
 
 

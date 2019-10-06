@@ -1,10 +1,10 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.extentions.topologyTestDriver.TopologyTestDriverExtension;
-import org.apache.kafka.retryableTest.extentions.topologyTestDriver.WithTopologyTestDriver;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
+import org.apache.kafka.retryableTestSupport.extentions.topologyTestDriver.TopologyTestDriverExtension;
+import org.apache.kafka.retryableTestSupport.extentions.topologyTestDriver.WithTopologyTestDriver;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.internals.RetryableTopologyTestDriver;
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Properties;
 
-import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
+import static org.apache.kafka.retryableTestSupport.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
 
 @ExtendWith(TopologyTestDriverExtension.class)
 public abstract class WithRetryableTopologyTestDriver implements WithTopologyTestDriver {

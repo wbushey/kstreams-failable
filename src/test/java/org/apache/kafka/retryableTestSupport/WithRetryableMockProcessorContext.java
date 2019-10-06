@@ -1,12 +1,12 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockCallback;
+import org.apache.kafka.retryableTestSupport.extentions.TopologyPropertiesExtension;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.kstream.internals.KStreamRetryableForeach;
 import org.apache.kafka.streams.kstream.internals.RetryableProcessorTestDriver;
 import org.junit.jupiter.api.AfterEach;

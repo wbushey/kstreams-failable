@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.Topology;

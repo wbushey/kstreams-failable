@@ -2,10 +2,10 @@ package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.retryableTest.WithRetryableTopologyTestDriver;
-import org.apache.kafka.retryableTest.extentions.mockCallbacks.MockSuccessfulForeachExtension;
-import org.apache.kafka.retryableTest.mocks.mockCallbacks.MockSuccessfulForeach;
-import org.apache.kafka.retryableTest.mocks.mockSerdes.MockDefaultSerde;
+import org.apache.kafka.retryableTestSupport.WithRetryableTopologyTestDriver;
+import org.apache.kafka.retryableTestSupport.extentions.mockCallbacks.MockSuccessfulForeachExtension;
+import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockSuccessfulForeach;
+import org.apache.kafka.retryableTestSupport.mocks.mockSerdes.MockDefaultSerde;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.TopologyDescription;
 import org.apache.kafka.streams.kstream.Consumed;
@@ -23,9 +23,9 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
-import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
-import static org.apache.kafka.retryableTest.TopologyFactory.insertMockDefaultSerde;
+import static org.apache.kafka.retryableTestSupport.TestTopology.DEFAULT_TEST_INPUT_TOPIC_NAME;
+import static org.apache.kafka.retryableTestSupport.TestTopology.DEFAULT_TEST_NODE_NAME;
+import static org.apache.kafka.retryableTestSupport.TopologyFactory.insertMockDefaultSerde;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MockSuccessfulForeachExtension.class)

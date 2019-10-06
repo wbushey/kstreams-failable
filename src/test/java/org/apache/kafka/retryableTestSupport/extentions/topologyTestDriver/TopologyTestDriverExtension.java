@@ -1,6 +1,6 @@
-package org.apache.kafka.retryableTest.extentions.topologyTestDriver;
+package org.apache.kafka.retryableTestSupport.extentions.topologyTestDriver;
 
-import org.apache.kafka.retryableTest.extentions.TopologyPropertiesExtension;
+import org.apache.kafka.retryableTestSupport.extentions.TopologyPropertiesExtension;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;

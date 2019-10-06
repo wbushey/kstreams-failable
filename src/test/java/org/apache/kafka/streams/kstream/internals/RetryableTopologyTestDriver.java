@@ -1,7 +1,7 @@
 package org.apache.kafka.streams.kstream.internals;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.retryableTest.TestTopology;
+import org.apache.kafka.retryableTestSupport.TestTopology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static org.apache.kafka.retryableTest.TestTopology.DEFAULT_TEST_NODE_NAME;
+import static org.apache.kafka.retryableTestSupport.TestTopology.DEFAULT_TEST_NODE_NAME;
 
 public class RetryableTopologyTestDriver<K, V> implements RetryableTestDriver<K, V> {
     private static final String RETRIES_STORE_SUFFIX = "-RETRIES_STORE";

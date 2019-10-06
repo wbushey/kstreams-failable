@@ -1,11 +1,11 @@
-package org.apache.kafka.retryableTest.extentions;
+package org.apache.kafka.retryableTestSupport.extentions;
 
 import org.junit.jupiter.api.extension.*;
 
 import java.util.Properties;
 
-import static org.apache.kafka.retryableTest.TopologyFactory.createTopologyProps;
-import static org.apache.kafka.retryableTest.TopologyFactory.resetTopologyProps;
+import static org.apache.kafka.retryableTestSupport.TopologyFactory.createTopologyProps;
+import static org.apache.kafka.retryableTestSupport.TopologyFactory.resetTopologyProps;
 
 public class TopologyPropertiesExtension implements AfterEachCallback, ParameterResolver {
     private final Properties topologyProps = createTopologyProps();

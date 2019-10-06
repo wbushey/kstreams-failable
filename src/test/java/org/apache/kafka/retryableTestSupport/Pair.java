@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import java.util.Objects;
 

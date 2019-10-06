@@ -1,4 +1,4 @@
-package org.apache.kafka.retryableTest;
+package org.apache.kafka.retryableTestSupport;
 
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import static org.apache.kafka.retryableTest.TaskAttemptsStoreTestAccess.access;
+import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
 import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.iterableFor;
 import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.flattenedIteratorFor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
