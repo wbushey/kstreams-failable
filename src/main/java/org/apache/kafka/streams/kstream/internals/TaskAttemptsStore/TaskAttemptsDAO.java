@@ -8,7 +8,8 @@ import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.util.Iterator;
 
-import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.*;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreTransformers.flattenedIteratorFor;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreTransformers.iterableFor;
 
 public class TaskAttemptsDAO {
     private KeyValueStore<Long, TaskAttemptsCollection> attemptsStore;

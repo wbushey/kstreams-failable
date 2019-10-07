@@ -27,7 +27,7 @@ public class KStreamRetryableForeach<K, V> implements ProcessorSupplier<K, V> {
     private final String deadLetterNodeName;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    KStreamRetryableForeach(String tasksStoreName, String deadLetterNodeName, final RetryableForeachAction<? super K, ? super V> action){
+    public KStreamRetryableForeach(String tasksStoreName, String deadLetterNodeName, final RetryableForeachAction<? super K, ? super V> action){
         this.tasksStoreName = tasksStoreName;
         this.deadLetterNodeName = deadLetterNodeName;
         this.action = action;

@@ -2,12 +2,12 @@ package org.apache.kafka.retryableTestSupport;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.retryableTestSupport.RetryableTestDrivers.RetryableTopologyTestDriver;
 import org.apache.kafka.retryableTestSupport.extentions.topologyTestDriver.TopologyTestDriverExtension;
 import org.apache.kafka.retryableTestSupport.extentions.topologyTestDriver.WithTopologyTestDriver;
 import org.apache.kafka.retryableTestSupport.mocks.mockCallbacks.MockCallback;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
-import org.apache.kafka.streams.kstream.internals.RetryableTopologyTestDriver;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Properties;

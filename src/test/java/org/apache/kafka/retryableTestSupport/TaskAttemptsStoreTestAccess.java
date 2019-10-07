@@ -9,7 +9,7 @@ import java.time.ZonedDateTime;
 import java.util.LinkedList;
 import java.util.List;
 
-import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.*;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreTransformers.*;
 
 /**
  * Module of functions for tests to use to directly query or manipulate a TaskAttempts store

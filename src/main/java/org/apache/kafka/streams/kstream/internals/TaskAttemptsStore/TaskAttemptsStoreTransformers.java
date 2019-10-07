@@ -9,7 +9,7 @@ import java.util.Iterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class TaskAttemptsStoreAdapter {
+public class TaskAttemptsStoreTransformers {
     /**
      * @param tacIterator Iterator to flatten and streamify
      * @return Stream of items in this iterator, flattened

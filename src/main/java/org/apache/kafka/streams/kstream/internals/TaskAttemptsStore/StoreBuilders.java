@@ -1,4 +1,4 @@
-package org.apache.kafka.streams.kstream.internals;
+package org.apache.kafka.streams.kstream.internals.TaskAttemptsStore;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;

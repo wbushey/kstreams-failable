@@ -1,4 +1,4 @@
-package org.apache.kafka.streams.kstream.internals;
+package org.apache.kafka.retryableTestSupport.RetryableTestDrivers;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsDAO;

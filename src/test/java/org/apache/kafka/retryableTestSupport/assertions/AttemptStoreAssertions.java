@@ -11,8 +11,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
-import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.iterableFor;
-import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreAdapter.flattenedIteratorFor;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreTransformers.flattenedIteratorFor;
+import static org.apache.kafka.streams.kstream.internals.TaskAttemptsStore.TaskAttemptsStoreTransformers.iterableFor;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AttemptStoreAssertions {
