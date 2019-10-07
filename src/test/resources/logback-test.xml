@@ -1,0 +1,4 @@
+<configuration>
+    <!-- Sets no appender for the root logger, so test output isn't filled with logging -->
+    <root level="info"/>
+</configuration>
