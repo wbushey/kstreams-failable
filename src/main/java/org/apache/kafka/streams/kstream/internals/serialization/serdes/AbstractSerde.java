@@ -3,6 +3,8 @@ package org.apache.kafka.streams.kstream.internals.serialization.serdes;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -12,24 +14,13 @@ import static org.apache.kafka.streams.kstream.internals.serialization.Serializa
 import static org.apache.kafka.streams.kstream.internals.serialization.Serialization.toByteArray;
 
 class AbstractSerde<T extends Serializable> implements Serde<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractSerde.class);
     private final InnerSerializer<T> serializer;
     private final InnerDeserializer<T> deserializer;
 
     AbstractSerde(Class<T> type){
          serializer = new InnerSerializer<>();
          deserializer  = new InnerDeserializer<>(type);
-    }
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {
-        serializer.configure(configs, isKey);
-        deserializer.configure(configs, isKey);
-    }
-
-    @Override
-    public void close() {
-        serializer.close();
-        deserializer.close();
     }
 
     @Override
@@ -49,7 +40,7 @@ class AbstractSerde<T extends Serializable> implements Serde<T> {
             try {
                 result = toByteArray(object);
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Exception encountered while serializing object for topic " + topic, e);
             }
             return result;
         }
@@ -68,7 +59,7 @@ class AbstractSerde<T extends Serializable> implements Serde<T> {
             try {
                 result = fromByteArray(data, type);
             } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
+                LOG.error("Exception encountered while deserializing object from topic " + topic, e);
             }
 
             return result;

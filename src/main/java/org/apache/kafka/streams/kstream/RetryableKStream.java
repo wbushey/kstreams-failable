@@ -78,7 +78,7 @@ public interface RetryableKStream<K, V> extends KStream<K, V> {
      * exception should be retired.
      */
     class RetryableException extends RuntimeException {
-        public RetryableException(String message) { super(message); }
+        public RetryableException(String message) { this(message, null); }
         public RetryableException(String message, Throwable e) { super(message, e);}
     }
 
@@ -87,7 +87,7 @@ public interface RetryableKStream<K, V> extends KStream<K, V> {
      * that led to this exception should *not* be retried.
      */
     class FailableException extends RuntimeException {
-        public FailableException(String message) { super(message); }
+        public FailableException(String message) { this(message, null); }
         public FailableException(String message, Throwable e) { super(message, e); }
     }
 
@@ -96,7 +96,7 @@ public interface RetryableKStream<K, V> extends KStream<K, V> {
      * FailableException, thus, the action should not be retried again.
      */
     class RetriesExhaustedException extends FailableException {
-        public RetriesExhaustedException(String message) { super(message);}
+        public RetriesExhaustedException(String message) { this(message, null);}
         public RetriesExhaustedException(String message, Throwable e) { super(message, e);}
     }
 }

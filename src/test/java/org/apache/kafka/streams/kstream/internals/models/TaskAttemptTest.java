@@ -16,13 +16,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TaskAttemptTest {
     private static final String DEAFULT_TEST_TOPIC_NAME = "TestTopic";
+    private final Serde<String> stringSerde = Serdes.String();
     private ZonedDateTime now;
     private TaskAttempt subject;
 
     @BeforeEach
     void setUp(){
         final String topicName = DEAFULT_TEST_TOPIC_NAME;
-        final Serde<String> stringSerde = Serdes.String();
         now = ZonedDateTime.now(ZoneOffset.UTC);
 
         subject = new TaskAttempt(
@@ -86,5 +86,30 @@ class TaskAttemptTest {
         // The maximum number of attempts have been attempted.
         assertTrue(subject.getAttemptsCount() == TaskAttempt.MAX_ATTEMPTS);
         assertTrue(subject.hasExhaustedRetries());
+    }
+
+    @Test
+    @DisplayName("It displays useful information when printed")
+    void testToString(){
+        assertTrue(subject.toString().contains(subject.getTimeReceived().toString()));
+        assertTrue(subject.toString().contains(subject.getTopicOfOrigin()));
+        assertTrue(subject.toString().contains(subject.getAttemptsCount().toString()));
+        assertTrue(subject.toString().contains(subject.getTimeOfNextAttempt().toString()));
+        assertTrue(subject.toString().contains(subject.getMessage().toString()));
+    }
+
+    @Test
+    @DisplayName("Equals behaves as expected")
+    void testEquals(){
+        String otherTopicName = "otherTopic";
+        TaskAttempt other = new TaskAttempt(
+                otherTopicName,
+                stringSerde.serializer().serialize(otherTopicName, "key"),
+                stringSerde.serializer().serialize(otherTopicName, "value")
+        );
+
+        assertFalse(subject.equals(null));
+        assertTrue(subject.equals(subject));
+        assertFalse(subject.equals(otherTopicName));
     }
 }

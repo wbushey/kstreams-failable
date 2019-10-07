@@ -87,7 +87,7 @@ public class TaskAttempt implements Serializable {
     public String toString(){
         return "TaskAttempt\n"
             + this.getTimeReceived().toString() + "\n"
-            + this.getTopicOfOrigin().toString() + "\n"
+            + this.getTopicOfOrigin() + "\n"
             + this.getAttemptsCount().toString() + "\n"
             + this.getTimeOfNextAttempt().toString() + "\n"
             + this.getMessage().toString() + "\n";
@@ -106,15 +106,11 @@ public class TaskAttempt implements Serializable {
 
     @Override
     public boolean equals(Object o){
-        if (o == null)
+        if (!(o instanceof TaskAttempt))
             return false;
 
         if (o == this)
             return true;
-
-
-        if (!(o instanceof TaskAttempt))
-            return false;
 
         TaskAttempt other = (TaskAttempt)o;
 
@@ -142,22 +138,6 @@ public class TaskAttempt implements Serializable {
                     .append(keyBytes)
                     .append(valueBytes)
                     .toHashCode();
-        }
-
-        @Override
-        public boolean equals(Object o){
-            if (o == null)
-                return false;
-
-            if (o == this)
-                return true;
-
-            if (!(o instanceof Message))
-                return false;
-
-            Message other = (Message)o;
-
-            return this.hashCode() == other.hashCode();
         }
     }
 
