@@ -2,7 +2,7 @@ package org.apache.kafka.streams.kstream.internals.TaskAttemptsStore;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.kstream.RetryableKStream;
+import org.apache.kafka.streams.kstream.FailableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.processor.MockProcessorContext;
@@ -15,8 +15,8 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 
-import static org.apache.kafka.retryableTestSupport.TaskAttemptsStoreTestAccess.access;
-import static org.apache.kafka.retryableTestSupport.assertions.AttemptStoreAssertions.expect;
+import static org.apache.kafka.failableTestSupport.TaskAttemptsStoreTestAccess.access;
+import static org.apache.kafka.failableTestSupport.assertions.AttemptStoreAssertions.expect;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -81,7 +81,7 @@ class TaskAttemptsDAOTest {
             attempt.prepareForNextAttempt();
         }
 
-        assertThrows(RetryableKStream.RetriesExhaustedException.class, () -> subject.schedule(attempt));
+        assertThrows(FailableKStream.RetriesExhaustedException.class, () -> subject.schedule(attempt));
     }
 
 
