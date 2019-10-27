@@ -1,6 +1,6 @@
-[![CircleCI](https://circleci.com/gh/wbushey/kstreams-retryable/tree/master.svg?style=svg)](https://circleci.com/gh/wbushey/kstreams-retryable/tree/master)
-# kstreams-retryable
-Kafka Streams extention with retryable nodes
+[![CircleCI](https://circleci.com/gh/wbushey/kstreams-failable/tree/master.svg?style=svg)](https://circleci.com/gh/wbushey/kstreams-failable/tree/master)
+# kstreams-failable
+Kafka Streams extension with failure handling methods.
 
 ## Development Setup
 

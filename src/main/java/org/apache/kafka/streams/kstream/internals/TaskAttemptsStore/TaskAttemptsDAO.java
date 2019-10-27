@@ -1,7 +1,7 @@
 package org.apache.kafka.streams.kstream.internals.TaskAttemptsStore;
 
 import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.kstream.RetryableKStream;
+import org.apache.kafka.streams.kstream.FailableKStream;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttempt;
 import org.apache.kafka.streams.kstream.internals.models.TaskAttemptsCollection;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -25,11 +25,11 @@ public class TaskAttemptsDAO {
      * The TaskAttempts' timeOfNextAttempt will be used to schedule when the attempt will be executed.
      *
      * @param attempt - The TaskAttempt to schedule execution of.
-     * @throws RetryableKStream.RetriesExhaustedException - If an attempt is made to schedule a TaskAttempt that can no longer be attempted.
+     * @throws FailableKStream.RetriesExhaustedException - If an attempt is made to schedule a TaskAttempt that can no longer be attempted.
      */
-    public void schedule(TaskAttempt attempt) throws RetryableKStream.RetriesExhaustedException {
+    public void schedule(TaskAttempt attempt) throws FailableKStream.RetriesExhaustedException {
         if (attempt.hasExhaustedRetries()){
-            throw new RetryableKStream.RetriesExhaustedException("Retry attempts have been exhausted.");
+            throw new FailableKStream.RetriesExhaustedException("Retry attempts have been exhausted.");
         }
         insert(attempt);
     }
