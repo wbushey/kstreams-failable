@@ -1,12 +1,13 @@
-[![CircleCI](https://circleci.com/gh/wbushey/kstreams-retryable/tree/master.svg?style=svg)](https://circleci.com/gh/wbushey/kstreams-retryable/tree/master)
-# kstreams-retryable
-Kafka Streams extension with retryable nodes
+[![CircleCI](https://circleci.com/gh/wbushey/kstreams-failable/tree/master.svg?style=svg)](https://circleci.com/gh/wbushey/kstreams-failable/tree/master)
+
+# kstreams-failable
+Kafka Streams extension with failure handling methods.
 
 ## How to Use
 
 ```java
-// Import RetryableKStream and related exception
-import org.apache.kafka.streams.kstream.RetryableKStream;
+// Import FailableKStream and related exception
+import org.apache.kafka.streams.kstream.FailableKStream;
 import org.apache.kafka.streams.kstream.RetryableException;
 
 // Define your topology as normal
@@ -14,10 +15,10 @@ final StreamsBuilder builder = new StreamsBuilder();
 final KStream<String, String> input = builder.stream("inputTopicName");
 
 // Decorate the topology with Retryable methods;
-final RetryableKStream<String, String> retryableStream = RetryableKStream.fromKStream(input);
+final FailableKStream<String, String> failableStream = FailableKStream.fromKStream(input);
 
 // Use retryableForEach DSL method
-retryableStream.retryableForEach((key, value) -> {
+failableStream.retryableForEach((key, value) -> {
   try {
     apiPushThatIntermittentlyFails(value);
   } catch (Exception e) {
